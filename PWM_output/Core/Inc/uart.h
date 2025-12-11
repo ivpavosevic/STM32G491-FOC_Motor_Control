@@ -1,0 +1,21 @@
+/*
+ * uart.h
+ *
+ *  Created on: Nov 14, 2025
+ *      Author: ivanp
+ */
+
+#ifndef INC_UART_H_
+#define INC_UART_H_
+
+#define RX_LINE_MAX 64
+
+extern volatile uint8_t rx_line_ready;
+
+void UART_Init(UART_HandleTypeDef *huart);
+void UART_Transmit(uint8_t *string, n);
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart);
+
+
+
+#endif /* INC_UART_H_ */
