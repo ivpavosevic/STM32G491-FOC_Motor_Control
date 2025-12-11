@@ -51,7 +51,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	if (huart == s_huart)
 	{
-		HAL_GPIO_TogglePin(GPIO_A_Port);
 		uint8_t b = rx_byte;
 
 		if (b == '\r' || b == '\n') {
@@ -63,7 +62,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 			else rx_len = 0;
 		}
 
-		HAL_UART_Receive_IT(&s_huart, &rx_byte, 1);
+		HAL_UART_Receive_IT(s_huart, &rx_byte, 1);
 	}
 }
 

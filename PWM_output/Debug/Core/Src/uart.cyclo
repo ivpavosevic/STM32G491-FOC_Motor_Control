@@ -2,4 +2,4 @@
 ../Core/Src/uart.c:25:6:UART_Init	1
 ../Core/Src/uart.c:34:6:UART_GetLine	3
 ../Core/Src/uart.c:50:6:HAL_UART_RxCpltCallback	6
-../Core/Src/uart.c:69:9:UART_IsLineReady	1
+../Core/Src/uart.c:70:9:UART_IsLineReady	1
