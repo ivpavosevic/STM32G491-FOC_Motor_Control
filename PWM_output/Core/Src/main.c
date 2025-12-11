@@ -17,7 +17,8 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
+#include "pwm.h"
+#include "uart.h"
 #include "control.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -110,7 +111,7 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
-  UART_Init(*huart2);
+  UART_Init(huart2);
   Control_Init(htim1, htim3, htim7);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
@@ -123,6 +124,12 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	if (UART_IsLineReady())
+	{
+		char line[RX_LINE_MAX];
+		UART_GetLine(line, RX_LINE_MAX);
+		process_line(line);
+	}
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

@@ -4,6 +4,7 @@
  *  Created on: Nov 14, 2025
  *      Author: ivanp
  */
+#include "main.h"
 #include "pwm.h"
 
 void pwm_set_duty_percent(TIM_HandleTypeDef *htim, uint32_t channel, uint32_t pct)

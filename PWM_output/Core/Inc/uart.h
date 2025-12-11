@@ -13,8 +13,8 @@
 extern volatile uint8_t rx_line_ready;
 
 void UART_Init(UART_HandleTypeDef *huart);
-void UART_Transmit(uint8_t *string, n);
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart);
+void UART_GetLine(char *dst, uint32_t max_len);
+uint8_t UART_IsLineReady(void);
 
 
 

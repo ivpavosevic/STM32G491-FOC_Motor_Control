@@ -4,6 +4,7 @@
  *  Created on: Nov 14, 2025
  *      Author: ivanp
  */
+#include "main.h"
 #include "pwm.h"
 #include "uart.h"
 
