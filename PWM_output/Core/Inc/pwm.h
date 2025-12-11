@@ -7,6 +7,7 @@
 
 #ifndef INC_PWM_H_
 #define INC_PWM_H_
+#include "main.h"
 
 void pwm_set_duty_percent(TIM_HandleTypeDef *htim, uint32_t channel, uint32_t pct);
 

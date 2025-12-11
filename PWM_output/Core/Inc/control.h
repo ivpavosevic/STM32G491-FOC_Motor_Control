@@ -7,6 +7,8 @@
 
 #ifndef INC_CONTROL_H_
 #define INC_CONTROL_H_
+#include "main.h"
+void Control_Init(TIM_HandleTypeDef *htim_pwm, uint32_t pwm_channel, UART_HandleTypeDef *huart);
 
 void process_line(char *line);
 

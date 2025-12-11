@@ -1,0 +1,5 @@
+../Core/Src/uart.c:17:13:UART_Start_RX_IT	8	static
+../Core/Src/uart.c:25:6:UART_Init	16	static
+../Core/Src/uart.c:34:6:UART_GetLine	16	static,ignoring_inline_asm
+../Core/Src/uart.c:50:6:HAL_UART_RxCpltCallback	24	static
+../Core/Src/uart.c:69:9:UART_IsLineReady	4	static

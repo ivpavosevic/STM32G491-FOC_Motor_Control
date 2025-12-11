@@ -5,12 +5,12 @@
  *      Author: ivanp
  */
 #include "uart.h"
-#include "main.h"
+
 
 static volatile uint8_t  rx_byte;
 static char  rx_line[RX_LINE_MAX];
 static volatile uint32_t rx_len = 0;
-volatile uint8_t  rx_line_ready = 0;
+volatile uint8_t rx_line_ready = 0;
 
 static UART_HandleTypeDef *s_huart;
 
@@ -47,10 +47,11 @@ void UART_GetLine(char *dst, uint32_t max_len)
     __enable_irq();
 }
 
-void HAL_UART_RxCpltCallback()
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	if (huart == s_huart)
 	{
+		HAL_GPIO_TogglePin(GPIO_A_Port);
 		uint8_t b = rx_byte;
 
 		if (b == '\r' || b == '\n') {
