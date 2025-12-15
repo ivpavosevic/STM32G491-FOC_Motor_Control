@@ -32,7 +32,6 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-volatile uint32_t pwm_duty = 50;  // duty cycle varijabla
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -117,19 +116,33 @@ int main(void)
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
-  //HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-  //HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-  //HAL_TIM_PWM_Start(&htim7, TIM_CHANNEL_1);
-  // Start PWM Timer - TIM2CH1
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+
+
+ /* Starting all timers - CHx and CHxN channels */
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1); // LED lamp pin - to remove later
+
+  /* CH1 & CH1N */
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1);
+  /* CH2 & CH2N */
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_2);
+  /* CH3 & CH3N */
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_3);
 
   // Inicijaliziraj kontrolni sloj (postavit će početni duty na 50%)
   Control_Init(&htim2, TIM_CHANNEL_1, &huart2);
+  Control_Init(&htim1, TIM_CHANNEL_1, &huart2);
+
+
+
+
 
   // UART RX s line bufferom
   UART_Init(&huart2);
 
-  const char *msg = "UART ready. Type 'pwm X' (X=0..100)\r\n";
+  const char *msg = "UART ready. Type 'start'\r\n";
   HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
   /* USER CODE END 2 */
 
@@ -327,7 +340,7 @@ static void MX_TIM1_Init(void)
   sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
   sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
   sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
-  sBreakDeadTimeConfig.DeadTime = 0;
+  sBreakDeadTimeConfig.DeadTime = 100;
   sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
   sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
   sBreakDeadTimeConfig.BreakFilter = 0;

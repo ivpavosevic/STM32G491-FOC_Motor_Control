@@ -8,6 +8,7 @@
 #ifndef INC_UART_H_
 #define INC_UART_H_
 #include "main.h"
+#include <string.h>
 #define RX_LINE_MAX 64
 
 void UART_Init(UART_HandleTypeDef *huart);

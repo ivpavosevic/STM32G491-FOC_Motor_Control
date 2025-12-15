@@ -10,7 +10,7 @@
 static volatile uint8_t  rx_byte;
 static char  rx_line[RX_LINE_MAX];
 static volatile uint32_t rx_len = 0;
-volatile uint8_t rx_line_ready = 0;
+static volatile uint8_t rx_line_ready = 0;
 
 static UART_HandleTypeDef *s_huart;
 
