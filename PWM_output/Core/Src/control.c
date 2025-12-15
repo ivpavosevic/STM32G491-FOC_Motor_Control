@@ -13,7 +13,7 @@ static TIM_HandleTypeDef *s_htim_pwm = NULL;
 static uint32_t pwm_ch = 0;
 static UART_HandleTypeDef *s_huart = NULL;
 
-static volatile uint32_t pwm_duty = 50;
+static volatile uint32_t pwm_duty = 0; // Everything turned off in the start
 
 void Control_Init(TIM_HandleTypeDef *htim_pwm, uint32_t pwm_channel, UART_HandleTypeDef *huart){
     s_htim_pwm = htim_pwm;

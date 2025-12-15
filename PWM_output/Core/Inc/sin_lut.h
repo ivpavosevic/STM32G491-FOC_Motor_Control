@@ -8,8 +8,11 @@
 #ifndef INC_SIN_LUT_H_
 #define INC_SIN_LUT_H_
 
-void sinLUT_Init(void);
+#include "main.h"
 
-float sinLUT_Get(int index);
+#define SIN_LUT_SIZE 512
+
+void sinLUT_Init(void);
+float sinLUT_Get(uint16_t index);
 
 #endif /* INC_SIN_LUT_H_ */
