@@ -10,9 +10,10 @@
 
 #include "main.h"
 
-#define SIN_LUT_SIZE 512
+#define SIN_LUT_SIZE 300
+#define SUCCESS 0
 
-void sinLUT_Init(void);
+int sinLUT_Init(void);
 float sinLUT_Get(uint16_t index);
 
 #endif /* INC_SIN_LUT_H_ */

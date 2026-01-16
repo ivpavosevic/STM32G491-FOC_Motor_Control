@@ -110,7 +110,6 @@ int main(void)
   MX_USART2_UART_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-  sinLUT_Init();
 
 
  /* Starting all timers - CHx and CHxN channels */
@@ -125,13 +124,9 @@ int main(void)
   /* CH3 & CH3N */
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
   HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_3);
-
-
-  HAL_TIM_Base_Start_IT(&htim2);
   //HAL_TIM_Base_Start_IT(&htim1);
 
   // Inicijaliziraj kontrolni sloj (postavit će početni duty na 0%)
-  Control_Init(&htim2, TIM_CHANNEL_1, &huart2);
   Control_Init(&htim1, TIM_CHANNEL_1, &huart2);
   Control_Init(&htim1, TIM_CHANNEL_2, &huart2);
   Control_Init(&htim1, TIM_CHANNEL_3, &huart2);
@@ -141,6 +136,18 @@ int main(void)
 
   const char *msg = "UART ready. Type 'start'\r\n";
   HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+
+  //pwm_set_duty_percent(&htim1, TIM_CHANNEL_1, 50);
+
+  // Fill LUT table
+  if(sinLUT_Init() == SUCCESS){
+	 const char *rep = "Radi\r\n";
+	 HAL_UART_Transmit(&huart2, (uint8_t*)rep, strlen(rep), HAL_MAX_DELAY);
+  }
+
+
+
+  HAL_TIM_Base_Start_IT(&htim1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -295,8 +302,8 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 4-1;
-  htim1.Init.CounterMode = TIM_COUNTERMODE_CENTERALIGNED1;
+  htim1.Init.Prescaler = 0;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_CENTERALIGNED3;
   htim1.Init.Period = 4249;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
@@ -321,7 +328,7 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_COMBINED_PWM1;
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
   sConfigOC.Pulse = 0;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
@@ -332,7 +339,6 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
   if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
   {
     Error_Handler();
@@ -344,7 +350,7 @@ static void MX_TIM1_Init(void)
   sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
   sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
   sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
-  sBreakDeadTimeConfig.DeadTime = 100;
+  sBreakDeadTimeConfig.DeadTime = 50;
   sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
   sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
   sBreakDeadTimeConfig.BreakFilter = 0;

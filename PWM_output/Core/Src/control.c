@@ -51,7 +51,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
     if (GPIO_Pin == GPIO_PIN_13)
     {
-        // --- debounce softverski ---
+        // debounce softverski
         static uint32_t last_press_ms = 0;
         uint32_t now = HAL_GetTick();
 
@@ -61,19 +61,24 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
         }
         last_press_ms = now;
 
-        // --- promijeni duty ciklus ---
-        pwm_duty += 10;
-        if (pwm_duty > 100) {
-            pwm_duty = 0;
-        }
+        uint32_t ccr1x = __HAL_TIM_GET_COMPARE(s_htim_pwm, TIM_CHANNEL_1);
+        uint32_t ccr2x = __HAL_TIM_GET_COMPARE(s_htim_pwm, TIM_CHANNEL_2);
+        uint32_t ccr3x = __HAL_TIM_GET_COMPARE(s_htim_pwm, TIM_CHANNEL_3);
 
-        // --- ažuriraj PWM output odmah ---
-        pwm_set_duty_percent(s_htim_pwm, pwm_ch, pwm_duty);
+        float ccr1_print = ccr1x / 4249.0f * 100000;
+        float ccr2_print = ccr2x / 4249.0f * 100000;
+        float ccr3_print = ccr3x / 4249.0f * 100000;
 
-        // --- (opcionalno) pošalji status na UART ---
-        char buf[40];
-        int n = snprintf(buf, sizeof(buf), "Duty changed by button = %lu%%\r\n", pwm_duty);
-        HAL_UART_Transmit(s_huart, (uint8_t*)buf, n, HAL_MAX_DELAY);
+        // Report na UART
+        char buf1[60];
+        char buf2[60];
+        char buf3[60];
+        int n1 = snprintf(buf1, sizeof(buf1), "CH1 ccr = 0.%05d\r\n", (int)ccr1_print);
+        int n2 = snprintf(buf2, sizeof(buf2), "CH2 ccr = 0.%05d\r\n", (int)ccr2_print);
+        int n3 = snprintf(buf3, sizeof(buf3), "CH3 ccr = 0.%05d\r\n", (int)ccr3_print);
+        HAL_UART_Transmit(s_huart, (uint8_t*)buf1, n1, HAL_MAX_DELAY);
+        HAL_UART_Transmit(s_huart, (uint8_t*)buf2, n2, HAL_MAX_DELAY);
+        HAL_UART_Transmit(s_huart, (uint8_t*)buf3, n3, HAL_MAX_DELAY);
     }
 }
 

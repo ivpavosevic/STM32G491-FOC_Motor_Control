@@ -21,7 +21,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	if(htim->Instance != TIM1) return;
 
 	static uint16_t idx = 0;
-	static float m = 0.8f; // < 1, da nije cijela amplituda
+	static float m = 1.0f; // < 1, da nije cijela amplituda
 
 	uint32_t arr = __HAL_TIM_GET_AUTORELOAD(htim);
 
@@ -32,6 +32,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	uint32_t ccr1 = (uint32_t) (sin_val1 * (float)arr);
 	uint32_t ccr2 = (uint32_t) (sin_val2 * (float)arr);
 	uint32_t ccr3 = (uint32_t) (sin_val3 * (float)arr);
+
+//	uint32_t ccr1 = 1000;
+//	uint32_t ccr2 = 2125;
+//	uint32_t ccr3 = 3500;
 
 	__HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_1, ccr1);
 	__HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_2, ccr2);

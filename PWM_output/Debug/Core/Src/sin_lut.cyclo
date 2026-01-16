@@ -1,2 +1,2 @@
-../Core/Src/sin_lut.c:10:6:sinLUT_Init	2
-../Core/Src/sin_lut.c:18:7:sinLUT_Get	1
+../Core/Src/sin_lut.c:11:5:sinLUT_Init	2
+../Core/Src/sin_lut.c:22:7:sinLUT_Get	1
