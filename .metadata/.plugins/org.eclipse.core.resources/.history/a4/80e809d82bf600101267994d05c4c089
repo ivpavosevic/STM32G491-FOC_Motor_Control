@@ -85,7 +85,7 @@ void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
 
 //        float sin_val1 = 0.5f + 0.5f * m * sinLUT_Get(idx + 1);
 //        uint32_t ccr1 = (uint32_t) (sin_val1 * (float)arr);
-        uint32_t ccr1 = 1000;
+        uint32_t ccr1 = 1500;
         __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_1, ccr1);
 
         // sljedeći event nazad na 0

@@ -175,6 +175,15 @@ int main(void)
     {
         adc_last_main = adc_raw;  // gledaj u debuggeru
 
+        /* Debug indikator: usporedi s polovinom skale (12-bit => 2048) */
+        if (adc_raw >= 2048)
+        {
+            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+        }
+        else
+        {
+            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+        }
     }
     /* USER CODE END WHILE */
 

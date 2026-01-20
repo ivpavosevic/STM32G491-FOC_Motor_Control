@@ -71,6 +71,16 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 //        float ccr2_print = ccr2x / 4249.0f * 100000;
 //        float ccr3_print = ccr3x / 4249.0f * 100000;
 
+        // --- ažuriraj PWM output odmah ---
+        pwm_set_duty_percent(s_htim_pwm, TIM_CHANNEL_1, pwm_duty_pct);
+
+        // --- promijeni duty ciklus ---
+        pwm_duty_pct += 5;
+        if (pwm_duty_pct >= 100) {
+        	pwm_duty_pct = 0;
+        }
+
+
 
         // Report na UART
         char buf1[60];

@@ -17,7 +17,6 @@ static volatile uint16_t s_adc_last = 0;
 void ADC_Init(ADC_HandleTypeDef *hadc){
 	s_hadc = hadc;
 }
-
 void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
     if (hadc->Instance != ADC1)

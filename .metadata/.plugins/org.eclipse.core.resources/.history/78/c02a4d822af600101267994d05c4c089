@@ -8,7 +8,6 @@
 #ifndef INC_ADC_H_
 #define INC_ADC_H_
 #include "main.h"
-#define ADC_TO_MV(x) ((x) * 3300UL / 4095UL)
 
 void ADC_Init(ADC_HandleTypeDef *hadc);
 /* Start one injected conversion on ADC1 using a SOFTWARE trigger.
