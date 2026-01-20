@@ -7,18 +7,22 @@
 
 #include "pwm.h"
 #include "uart.h"
+#include "adc.h"
 
 
 static TIM_HandleTypeDef *s_htim_pwm = NULL;
 static uint32_t pwm_ch = 0;
 static UART_HandleTypeDef *s_huart = NULL;
+static UART_HandleTypeDef *s_adc = NULL;
+static volatile uint32_t pwm_duty_pct = 0;
 
 static volatile uint32_t pwm_duty = 0; // Everything turned off in the start
 
-void Control_Init(TIM_HandleTypeDef *htim_pwm, uint32_t pwm_channel, UART_HandleTypeDef *huart){
+void Control_Init(TIM_HandleTypeDef *htim_pwm, uint32_t pwm_channel, UART_HandleTypeDef *huart, ADC_HandleTypeDef *hadc){
     s_htim_pwm = htim_pwm;
     pwm_ch = pwm_channel;
     s_huart = huart;
+    s_adc = hadc;
 
     pwm_set_duty_percent(s_htim_pwm, pwm_ch, pwm_duty);
 }
@@ -61,24 +65,47 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
         }
         last_press_ms = now;
 
-        uint32_t ccr1x = __HAL_TIM_GET_COMPARE(s_htim_pwm, TIM_CHANNEL_1);
-        uint32_t ccr2x = __HAL_TIM_GET_COMPARE(s_htim_pwm, TIM_CHANNEL_2);
-        uint32_t ccr3x = __HAL_TIM_GET_COMPARE(s_htim_pwm, TIM_CHANNEL_3);
+        /* Iduce linije koda sluze za testiranje da su sinusi pomaknuti u fazama*/
+//
+//        float ccr1_print = ccr1x / 4249.0f * 100000;
+//        float ccr2_print = ccr2x / 4249.0f * 100000;
+//        float ccr3_print = ccr3x / 4249.0f * 100000;
 
-        float ccr1_print = ccr1x / 4249.0f * 100000;
-        float ccr2_print = ccr2x / 4249.0f * 100000;
-        float ccr3_print = ccr3x / 4249.0f * 100000;
+        // --- ažuriraj PWM output odmah ---
+        pwm_set_duty_percent(s_htim_pwm, TIM_CHANNEL_1, pwm_duty_pct);
+
+        // --- promijeni duty ciklus ---
+        pwm_duty_pct += 5;
+        if (pwm_duty_pct >= 100) {
+        	pwm_duty_pct = 0;
+        }
+
+
 
         // Report na UART
         char buf1[60];
         char buf2[60];
         char buf3[60];
-        int n1 = snprintf(buf1, sizeof(buf1), "CH1 ccr = 0.%05d\r\n", (int)ccr1_print);
-        int n2 = snprintf(buf2, sizeof(buf2), "CH2 ccr = 0.%05d\r\n", (int)ccr2_print);
-        int n3 = snprintf(buf3, sizeof(buf3), "CH3 ccr = 0.%05d\r\n", (int)ccr3_print);
+
+        uint32_t ccr1x = __HAL_TIM_GET_COMPARE(s_htim_pwm, TIM_CHANNEL_1);
+        uint32_t cntx = __HAL_TIM_GET_COUNTER(s_htim_pwm);
+        uint32_t ccr2x = __HAL_TIM_GET_COMPARE(s_htim_pwm, TIM_CHANNEL_2);
+        uint32_t ccr3x = __HAL_TIM_GET_COMPARE(s_htim_pwm, TIM_CHANNEL_3);
+
+        uint16_t adc_btn = ADC1_GetLastSample();
+        uint16_t adc_true = (adc_btn * 3300) / 4095;
+
+
+//        int n1 = snprintf(buf1, sizeof(buf1), "CH1 ccr = 0.%05d\r\n", (int)ccr1_print);
+//        int n2 = snprintf(buf2, sizeof(buf2), "CH2 ccr = 0.%05d\r\n", (int)ccr2_print);
+//        int n3 = snprintf(buf3, sizeof(buf3), "CH3 ccr = 0.%05d\r\n", (int)ccr3_print);
+        int n1 = snprintf(buf1, sizeof(buf1), "CH1 adc = %d\r\n", (int)adc_true);
+        int n2 = snprintf(buf2, sizeof(buf2), "CH2 ccr = %d\r\n", (int)ccr2x);
+        int n3 = snprintf(buf3, sizeof(buf3), "CH3 ccr = %d\r\n", (int)ccr3x);
         HAL_UART_Transmit(s_huart, (uint8_t*)buf1, n1, HAL_MAX_DELAY);
         HAL_UART_Transmit(s_huart, (uint8_t*)buf2, n2, HAL_MAX_DELAY);
         HAL_UART_Transmit(s_huart, (uint8_t*)buf3, n3, HAL_MAX_DELAY);
+
     }
 }
 

@@ -1,0 +1,28 @@
+18:59:30 **** Incremental Build of configuration Debug for project PWM_output ****
+make -j8 all 
+arm-none-eabi-gcc "../Core/Src/control.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32G491xx -c -I../Core/Inc -I../Drivers/STM32G4xx_HAL_Driver/Inc -I../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32G4xx/Include -I../Drivers/CMSIS/Include -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/control.d" -MT"Core/Src/control.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/control.o"
+../Core/Src/control.c: In function 'Control_Init':
+../Core/Src/control.c:25:11: warning: assignment to 'UART_HandleTypeDef *' {aka 'struct __UART_HandleTypeDef *'} from incompatible pointer type 'ADC_HandleTypeDef *' [-Wincompatible-pointer-types]
+   25 |     s_adc = hadc;
+      |           ^
+../Core/Src/control.c: In function 'HAL_GPIO_EXTI_Callback':
+../Core/Src/control.c:91:18: warning: unused variable 'cntx' [-Wunused-variable]
+   91 |         uint32_t cntx = __HAL_TIM_GET_COUNTER(s_htim_pwm);
+      |                  ^~~~
+../Core/Src/control.c:90:18: warning: unused variable 'ccr1x' [-Wunused-variable]
+   90 |         uint32_t ccr1x = __HAL_TIM_GET_COMPARE(s_htim_pwm, TIM_CHANNEL_1);
+      |                  ^~~~~
+arm-none-eabi-gcc -o "PWM_output.elf" @"objects.list"   -mcpu=cortex-m4 -T"C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\STM32G491RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="PWM_output.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Finished building target: PWM_output.elf
+ 
+arm-none-eabi-size  PWM_output.elf 
+arm-none-eabi-objdump -h -S PWM_output.elf  > "PWM_output.list"
+   text	   data	    bss	    dec	    hex	filename
+  48368	     92	   4852	  53312	   d040	PWM_output.elf
+Finished building: default.size.stdout
+ 
+Finished building: PWM_output.list
+ 
+
+18:59:31 Build Finished. 0 errors, 3 warnings. (took 1s.334ms)
+

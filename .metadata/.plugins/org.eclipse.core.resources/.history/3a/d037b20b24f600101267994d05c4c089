@@ -1,0 +1,16 @@
+/*
+ * adc.h
+ *
+ *  Created on: Jan 20, 2026
+ *      Author: ivanp
+ */
+
+#ifndef INC_ADC_H_
+#define INC_ADC_H_
+#include "main.h"
+
+void ADC_Init(ADC_HandleTypeDef *hadc);
+void ADC1_Injected_StartSoft(void);
+
+
+#endif /* INC_ADC_H_ */

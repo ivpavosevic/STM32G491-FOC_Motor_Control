@@ -1,0 +1,16 @@
+//org.eclipse.ui.commands/state/com.st.stm32cube.ide.mcu.buildanalyzer.showstate/org.eclipse.ui.commands.radioState=human
+//org.eclipse.ui.commands/state/org.eclipse.ui.navigator.resources.nested.changeProjectPresentation/org.eclipse.ui.commands.radioState=false
+ColorsAndFontsPreferencePage.expandedCategories=Torg.eclipse.ui.workbenchMisc\tTorg.eclipse.cdt.ui.presentation\tTorg.eclipse.debug.ui.presentation\tTterminal.views.theme.category\tTorg.eclipse.compare.contentmergeviewer.TextMergeViewer\tTorg.eclipse.ui.presentation.default
+ColorsAndFontsPreferencePage.selectedElement=Torg.eclipse.ui.workbenchMisc
+UIActivities.org.eclipse.cdt.debug.dsfgdbActivity=true
+eclipse.preferences.version=1
+org.eclipse.ui.commands=<?xml version\="1.0" encoding\="UTF-8"?>\r\n<org.eclipse.ui.commands>\r\n<keyBinding contextId\="org.eclipse.ui.contexts.window" keyConfigurationId\="org.eclipse.ui.defaultAcceleratorConfiguration" keySequence\="CTRL+F11"/>\r\n<keyBinding contextId\="org.eclipse.ui.contexts.window" keyConfigurationId\="org.eclipse.ui.defaultAcceleratorConfiguration" keySequence\="ALT+CTRL+B"/>\r\n<keyBinding commandId\="org.eclipse.debug.ui.commands.SkipAllBreakpoints" contextId\="org.eclipse.ui.contexts.window" keyConfigurationId\="org.eclipse.ui.defaultAcceleratorConfiguration" keySequence\="ALT+CTRL+-"/>\r\n</org.eclipse.ui.commands>
+org.eclipse.ui.workbench.ACTIVE_NOFOCUS_TAB_BG_END=41,41,41
+org.eclipse.ui.workbench.ACTIVE_NOFOCUS_TAB_BG_START=43,44,45
+org.eclipse.ui.workbench.ACTIVE_NOFOCUS_TAB_TEXT_COLOR=204,204,204
+org.eclipse.ui.workbench.ACTIVE_TAB_BG_END=41,41,41
+org.eclipse.ui.workbench.ACTIVE_TAB_BG_START=43,44,45
+org.eclipse.ui.workbench.ACTIVE_TAB_TEXT_COLOR=221,221,221
+org.eclipse.ui.workbench.INACTIVE_TAB_BG_END=49,53,56
+org.eclipse.ui.workbench.INACTIVE_TAB_BG_START=59,64,66
+org.eclipse.ui.workbench.INACTIVE_TAB_TEXT_COLOR=187,187,187

@@ -81,6 +81,8 @@ void Error_Handler(void);
 #define L1_GPIO_Port GPIOB
 #define TEMP_Pin GPIO_PIN_14
 #define TEMP_GPIO_Port GPIOB
+#define Test_pin_Pin GPIO_PIN_8
+#define Test_pin_GPIO_Port GPIOC
 #define H1_Pin GPIO_PIN_8
 #define H1_GPIO_Port GPIOA
 #define H2_Pin GPIO_PIN_9

@@ -53,7 +53,7 @@ char  rx_line[RX_LINE_MAX];
 volatile uint32_t rx_len = 0;
 volatile uint8_t  rx_line_ready = 0;
 
-volatile uint32_t pwm_duty = 50;  // duty cycle varijabla
+volatile uint32_t pwm_duty = 0;  // duty cycle varijabla
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -156,7 +156,7 @@ int main(void)
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
 
-// Start PWM TImer - TIM2CH1
+  // Start PWM TImer - TIM2CH1
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   pwm_set_duty_percent(&htim2, TIM_CHANNEL_1, pwm_duty);
 

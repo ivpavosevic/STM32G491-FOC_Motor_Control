@@ -60,8 +60,8 @@ all: main-build
 main-build: UART_PWM_LED.elf secondary-outputs
 
 # Tool invocations
-UART_PWM_LED.elf UART_PWM_LED.map: $(OBJS) $(USER_OBJS) C:\STM32_projekti\UART_PWM_LED\STM32G491RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "UART_PWM_LED.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\STM32_projekti\UART_PWM_LED\STM32G491RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="UART_PWM_LED.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+UART_PWM_LED.elf UART_PWM_LED.map: $(OBJS) $(USER_OBJS) C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\UART_PWM_LED\STM32G491RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "UART_PWM_LED.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\UART_PWM_LED\STM32G491RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="UART_PWM_LED.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

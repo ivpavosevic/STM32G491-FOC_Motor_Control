@@ -1,0 +1,50 @@
+2026-01-20 01:26:16,383 [INFO] UtilMem:75 - End SaveConfig() Used Memory: 742458624 Bytes (1073741824)
+2026-01-20 01:26:17,916 [INFO] UtilMem:75 - End SaveConfig() Used Memory: 770770176 Bytes (1073741824)
+2026-01-20 01:26:18,335 [INFO] UtilMem:75 - End SaveConfig() Used Memory: 797506816 Bytes (1073741824)
+2026-01-20 01:26:19,268 [INFO] BlockDiagram:2775 - set Specific Code input for plugin: TIM1_8G4
+2026-01-20 01:26:19,269 [INFO] BlockDiagram:2775 - set Specific Code input for plugin: TIM1_8G4
+2026-01-20 01:26:19,269 [INFO] BlockDiagram:2775 - set Specific Code input for plugin: SYS
+2026-01-20 01:26:19,269 [INFO] BlockDiagram:2775 - set Specific Code input for plugin: ADC
+2026-01-20 01:26:19,269 [INFO] BlockDiagram:2775 - set Specific Code input for plugin: RCC
+2026-01-20 01:26:19,269 [INFO] BlockDiagram:2775 - set Specific Code input for plugin: NVIC
+2026-01-20 01:26:19,270 [INFO] BlockDiagram:2775 - set Specific Code input for plugin: USART
+2026-01-20 01:26:19,270 [INFO] BlockDiagram:2775 - set Specific Code input for plugin: DMA
+2026-01-20 01:26:19,271 [INFO] BlockDiagram:2775 - set Specific Code input for plugin: GPIO
+2026-01-20 01:26:19,273 [INFO] CodeGenerator:892 - code generatio: config db path: C:\ST\STM32CubeIDE_1.19.0\STM32CubeIDE\plugins\com.st.stm32cube.common.mx_6.15.0.202507011659\\db\
+2026-01-20 01:26:19,817 [INFO] CodeEngine:265 - oldGeneratedFile, C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\MXTmpFiles\license.tmp_save
+2026-01-20 01:26:20,372 [INFO] CodeEngine:289 - Generated code: C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\MXTmpFiles\license.tmp
+2026-01-20 01:26:20,623 [INFO] CodeEngine:265 - oldGeneratedFile, C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\MXTmpFiles\gpio.tmp_save
+2026-01-20 01:26:20,820 [INFO] CodeEngine:289 - Generated code: C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\MXTmpFiles\gpio.tmp
+2026-01-20 01:26:21,780 [INFO] CodeEngine:265 - oldGeneratedFile, C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\MXTmpFiles\dma.tmp_save
+2026-01-20 01:26:21,899 [INFO] CodeEngine:289 - Generated code: C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\MXTmpFiles\dma.tmp
+2026-01-20 01:26:21,908 [INFO] CodeEngine:265 - oldGeneratedFile, C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\MXTmpFiles\dma_GV.tmp_save
+2026-01-20 01:26:22,010 [INFO] CodeEngine:289 - Generated code: C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\MXTmpFiles\dma_GV.tmp
+2026-01-20 01:26:22,059 [INFO] CodeEngine:265 - oldGeneratedFile, C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\Core\Src\stm32g4xx_it.c_save
+2026-01-20 01:26:22,279 [INFO] CodeEngine:289 - Generated code: C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\Core\Src\stm32g4xx_it.c
+2026-01-20 01:26:22,290 [INFO] CodeEngine:265 - oldGeneratedFile, C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\Core\Inc\stm32g4xx_it.h_save
+2026-01-20 01:26:22,411 [INFO] CodeEngine:289 - Generated code: C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\Core\Inc\stm32g4xx_it.h
+2026-01-20 01:26:22,442 [INFO] CodeEngine:265 - oldGeneratedFile, C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\Core\Src\stm32g4xx_hal_msp.c_save
+2026-01-20 01:26:22,696 [INFO] CodeEngine:289 - Generated code: C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\Core\Src\stm32g4xx_hal_msp.c
+2026-01-20 01:26:22,705 [INFO] CodeEngine:265 - oldGeneratedFile, C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\MXTmpFiles\system.tmp_save
+2026-01-20 01:26:22,820 [INFO] CodeEngine:289 - Generated code: C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\MXTmpFiles\system.tmp
+2026-01-20 01:26:22,843 [INFO] CodeEngine:321 - oldGeneratedFile, C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\Core\Inc\stm32g4xx_hal_conf.h_save
+2026-01-20 01:26:22,963 [INFO] CodeEngine:345 - Generated code: C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\Core\Inc\stm32g4xx_hal_conf.h
+2026-01-20 01:26:22,997 [WARN] IPConfigManager:3238 - Warning: the RefConfig RCC_CommonPeriphClockConfig is not available in your config.xml file
+2026-01-20 01:26:23,012 [INFO] ApiDbMcu:532 - Load IP Config File for ADC1
+2026-01-20 01:26:23,048 [INFO] ApiDbMcu:532 - Load IP Config File for TIM1
+2026-01-20 01:26:23,074 [INFO] ApiDbMcu:532 - Load IP Config File for TIM2
+2026-01-20 01:26:23,090 [INFO] ApiDbMcu:532 - Load IP Config File for USART2
+2026-01-20 01:26:23,094 [INFO] ApiDbMcu:532 - Load IP Config File for RCC
+2026-01-20 01:26:23,099 [WARN] IPConfigManager:3811 - IP not found : TIM
+2026-01-20 01:26:23,101 [WARN] CodeGenerator:4259 - IP not found : null
+2026-01-20 01:26:23,115 [INFO] CodeEngine:265 - oldGeneratedFile, C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\Core\Inc\main.h_save
+2026-01-20 01:26:23,257 [INFO] CodeEngine:289 - Generated code: C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\Core\Inc\main.h
+2026-01-20 01:26:23,269 [INFO] CodeEngine:265 - oldGeneratedFile, C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\Core\Src\main.c_save
+2026-01-20 01:26:23,503 [INFO] CodeEngine:289 - Generated code: C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\Core\Src\main.c
+2026-01-20 01:26:24,349 [INFO] ProjectBuilder:3606 - Time for Copy HAL[1] : 360mS.
+2026-01-20 01:26:24,361 [INFO] ProjectBuilder:5216 - Project Generator version: 4.7.0-B52
+2026-01-20 01:26:24,620 [INFO] ConfigFileManager:1595 - The Die is : DIE479
+2026-01-20 01:26:24,631 [INFO] ApiDbMcu:532 - Load IP Config File for FATFS
+2026-01-20 01:26:24,640 [INFO] ApiDbMcu:532 - Load IP Config File for FREERTOS
+2026-01-20 01:26:24,656 [INFO] ApiDbMcu:532 - Load IP Config File for USBPD
+2026-01-20 01:26:24,673 [INFO] ApiDbMcu:532 - Load IP Config File for USB_DEVICE

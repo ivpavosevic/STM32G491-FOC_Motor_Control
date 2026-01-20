@@ -1,0 +1,14 @@
+/*
+ * adc.c
+ *
+ *  Created on: Jan 20, 2026
+ *      Author: ivanp
+ */
+
+
+void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)
+{
+    if (hadc->Instance != ADC1) return;
+    adc_raw = (uint16_t)HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_1);
+    adc_busy = 0;
+}
