@@ -13,7 +13,9 @@
 #define LUT_OFFSET_240  ((2 * SIN_LUT_SIZE) / 3)
 
 void pwm_set_duty_percent(TIM_HandleTypeDef *htim, uint32_t channel, uint32_t pct);
-void ADC_Init(ADC_HandleTypeDef *hadc);
+
+uint16_t PWM_GetCCR1_2nd(void);
+uint16_t PWM_GetCCR1_2nd(void);
 
 
 #endif /* INC_PWM_H_ */

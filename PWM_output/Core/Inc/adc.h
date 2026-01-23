@@ -10,6 +10,8 @@
 #include "main.h"
 #define ADC_TO_MV(x) ((x) * 3300UL / 4095UL)
 
+
+/*Use privately the pointer for hadc*/
 void ADC_Init(ADC_HandleTypeDef *hadc);
 /* Start one injected conversion on ADC1 using a SOFTWARE trigger.
  * Safe to call from ISR (e.g., TIM callback). If ADC is busy, it returns immediately.

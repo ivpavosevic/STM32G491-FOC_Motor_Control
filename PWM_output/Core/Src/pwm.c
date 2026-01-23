@@ -8,6 +8,9 @@
 #include "sin_lut.h"
 #include "adc.h"
 
+static volatile ccr1_1st = 0;
+static volatile ccr1_2nd = 0;
+
 void pwm_set_duty_percent(TIM_HandleTypeDef *htim, uint32_t channel, uint32_t pct)
 {
     if (pct > 100) pct = 100;
@@ -19,82 +22,38 @@ void pwm_set_duty_percent(TIM_HandleTypeDef *htim, uint32_t channel, uint32_t pc
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-//	if(htim->Instance != TIM1) return;
-//	static uint32_t cnt = 0;
-//	static uint32_t arr = 0;
-//	static uint32_t ccr1 = 0;
-//	static uint32_t ccr2 = 0;
-//	static uint32_t ccr3 = 0;
-//
-//	arr = __HAL_TIM_GET_AUTORELOAD(htim);
-//	cnt = __HAL_TIM_GET_COUNTER(htim);
-//
-//	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8);
-//
-//	static uint16_t idx = 0;
-//	static float m = 0.5f; // < 1, da nije cijela amplituda
-//
-//	float sin_val1 = 0.5f + 0.5f * m * sinLUT_Get(idx);
-//	float sin_val2 = 0.5f + 0.5f * m * sinLUT_Get(idx + LUT_OFFSET_120);
-//	float sin_val3 = 0.5f + 0.5f * m * sinLUT_Get(idx + LUT_OFFSET_240);
-//
-//	ccr1 = (uint32_t) (sin_val1 * (float)arr);
-//	ccr2 = (uint32_t) (sin_val2 * (float)arr);
-//	ccr3 = (uint32_t) (sin_val3 * (float)arr);
-//
-//	__HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_1, ccr1);
-//	__HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_2, ccr2);
-//	__HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_3, ccr3);
-//
-//	idx++;
-//	if(idx >= SIN_LUT_SIZE) idx = 0;
+	if(htim->Instance != TIM1) return;
+	float sin_val1, sin_val2, sin_val3;
+	uint32_t ccr1, ccr2, ccr3;
+	static uint32_t arr;
+	static uint16_t idx = 0;
+	const float m = 0.5f; // < 1, da nije cijela amplitud
+	const float k = 0.5f * m;
+
+	arr = __HAL_TIM_GET_AUTORELOAD(htim);
+
+	sin_val1 = 0.5f + k * sinLUT_Get(idx);
+	sin_val2 = 0.5f + k * sinLUT_Get(idx + LUT_OFFSET_120);
+	sin_val3 = 0.5f + k * sinLUT_Get(idx + LUT_OFFSET_240);
+
+	ccr1 = (uint32_t) (sin_val1 * (float)arr);
+	ccr2 = (uint32_t) (sin_val2 * (float)arr);
+	ccr3 = (uint32_t) (sin_val3 * (float)arr);
+
+	__HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_1, 1000);
+	__HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_2, ccr2);
+	__HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_3, ccr3);
+
+	idx+=1;
+	if(idx >= SIN_LUT_SIZE) idx = 0;
 }
 
-void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
-{
-    if (htim->Instance != TIM1) return;
-    if (htim->Channel  != HAL_TIM_ACTIVE_CHANNEL_4) return;
+uint16_t PWM_GetCCR1_1st(void){
+	return ccr1_1st;
+}
 
-    uint32_t arr = __HAL_TIM_GET_AUTORELOAD(htim);
-    static uint8_t phase = 0; // 0: CNT=0, 1: CNT=ARR-1
-
-    static uint16_t idx = 0;
-    static float m = 0.5f; // < 1, da nije cijela amplituda
-
-    if (phase == 0)
-    {
-        // ----- EVENT: CNT == 0 -----
-        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_SET);
-
-        //float sin_val1 = 0.5f + 0.5f * m * sinLUT_Get(idx);
-        //uint32_t ccr1 = (uint32_t) (sin_val1 * (float)arr);
-        uint32_t ccr1 = 1000;
-        __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_1, ccr1);
-
-        // sljedeći event na "top - 1"
-        __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_4, arr - 1);
-        phase = 1;
-
-        /* Start injected ADC conversion (soft trigger) */
-        ADC1_Injected_StartSoft();
-    }
-    else
-    {
-        // ----- EVENT: CNT == ARR-1 -----
-        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET);
-
-//        float sin_val1 = 0.5f + 0.5f * m * sinLUT_Get(idx + 1);
-//        uint32_t ccr1 = (uint32_t) (sin_val1 * (float)arr);
-        uint32_t ccr1 = 1000;
-        __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_1, ccr1);
-
-        // sljedeći event nazad na 0
-        __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_4, 0);
-        phase = 0;
-    }
-
-    idx += 2;
-    if(idx >= SIN_LUT_SIZE) idx = 0;
+uint16_t PWM_GetCCR1_2nd(void){
+	return ccr1_2nd;
 }
 
 

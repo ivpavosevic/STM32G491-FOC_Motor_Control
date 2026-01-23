@@ -13,16 +13,14 @@
 static TIM_HandleTypeDef *s_htim_pwm = NULL;
 static uint32_t pwm_ch = 0;
 static UART_HandleTypeDef *s_huart = NULL;
-static UART_HandleTypeDef *s_adc = NULL;
 static volatile uint32_t pwm_duty_pct = 0;
 
 static volatile uint32_t pwm_duty = 0; // Everything turned off in the start
 
-void Control_Init(TIM_HandleTypeDef *htim_pwm, uint32_t pwm_channel, UART_HandleTypeDef *huart, ADC_HandleTypeDef *hadc){
+void Control_Init(TIM_HandleTypeDef *htim_pwm, uint32_t pwm_channel, UART_HandleTypeDef *huart){
     s_htim_pwm = htim_pwm;
     pwm_ch = pwm_channel;
     s_huart = huart;
-    s_adc = hadc;
 
     pwm_set_duty_percent(s_htim_pwm, pwm_ch, pwm_duty);
 }
@@ -78,7 +76,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
         char buf3[60];
 
         uint32_t ccr1x = __HAL_TIM_GET_COMPARE(s_htim_pwm, TIM_CHANNEL_1);
-        uint32_t arr = __HAL_TIM_GET_AUTORELOAD(s_htim_pwm);
         //uint32_t ccr2x = __HAL_TIM_GET_COMPARE(s_htim_pwm, TIM_CHANNEL_2);
         //uint32_t ccr3x = __HAL_TIM_GET_COMPARE(s_htim_pwm, TIM_CHANNEL_3);
 

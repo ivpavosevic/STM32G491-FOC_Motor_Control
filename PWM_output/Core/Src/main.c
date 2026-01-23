@@ -125,17 +125,19 @@ int main(void)
 
   // 1) Postavi početni compare za CH4 = 0 (događaj na CNT=0)
   __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_4, 0);
-  HAL_TIM_OC_Start_IT(&htim1, TIM_CHANNEL_4);
 
-  //HAL_TIM_Base_Start_IT(&htim1);
+  HAL_TIM_Base_Start_IT(&htim1);
 
   // Inicijaliziraj kontrolni sloj (postavit će početni duty na 0%)
-  Control_Init(&htim1, TIM_CHANNEL_1, &huart2, &hadc1);
-  Control_Init(&htim1, TIM_CHANNEL_2, &huart2, &hadc1);
-  Control_Init(&htim1, TIM_CHANNEL_3, &huart2, &hadc1);
+  Control_Init(&htim1, TIM_CHANNEL_1, &huart2);
+  Control_Init(&htim1, TIM_CHANNEL_2, &huart2);
+  Control_Init(&htim1, TIM_CHANNEL_3, &huart2);
 
   //ADC Init
   ADC_Init(&hadc1);
+
+  // Start interrupt for IT
+  HAL_ADCEx_InjectedStart_IT(&hadc1);
 
   // UART RX s line bufferom
   UART_Init(&huart2);
@@ -150,9 +152,6 @@ int main(void)
 	 const char *rep = "Radi\r\n";
 	 HAL_UART_Transmit(&huart2, (uint8_t*)rep, strlen(rep), HAL_MAX_DELAY);
   }
-
-
-
 
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET);
 
@@ -289,8 +288,8 @@ static void MX_ADC1_Init(void)
   sConfigInjected.InjectedDiscontinuousConvMode = DISABLE;
   sConfigInjected.AutoInjectedConv = DISABLE;
   sConfigInjected.QueueInjectedContext = DISABLE;
-  sConfigInjected.ExternalTrigInjecConv = ADC_INJECTED_SOFTWARE_START;
-  sConfigInjected.ExternalTrigInjecConvEdge = ADC_EXTERNALTRIGINJECCONV_EDGE_NONE;
+  sConfigInjected.ExternalTrigInjecConv = ADC_EXTERNALTRIGINJEC_T1_CC4;
+  sConfigInjected.ExternalTrigInjecConvEdge = ADC_EXTERNALTRIGINJECCONV_EDGE_RISING;
   sConfigInjected.InjecOversamplingMode = DISABLE;
   if (HAL_ADCEx_InjectedConfigChannel(&hadc1, &sConfigInjected) != HAL_OK)
   {
