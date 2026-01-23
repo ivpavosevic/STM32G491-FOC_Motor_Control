@@ -125,6 +125,7 @@ int main(void)
 
   // 1) Postavi početni compare za CH4 = 0 (događaj na CNT=0)
   __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_4, 0);
+  HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_4);
 
   HAL_TIM_Base_Start_IT(&htim1);
 
@@ -137,7 +138,7 @@ int main(void)
   ADC_Init(&hadc1);
 
   // Start interrupt for IT
-  HAL_ADCEx_InjectedStart_IT(&hadc1);
+
 
   // UART RX s line bufferom
   UART_Init(&huart2);

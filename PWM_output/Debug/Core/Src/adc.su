@@ -1,6 +1,4 @@
-../Core/Src/adc.c:17:6:ADC_Init	16	static
-../Core/Src/adc.c:21:6:HAL_ADCEx_InjectedConvCpltCallback	16	static
-../Core/Src/adc.c:34:6:ADC1_Injected_StartSoft	8	static
-../Core/Src/adc.c:49:10:ADC1_GetLastSample	4	static
-../Core/Src/adc.c:54:9:ADC1_TryPopNewSample	16	static
-../Core/Src/adc.c:68:9:ADC1_IsBusy	4	static
+../Core/Src/adc.c:15:6:ADC_Init	16	static
+../Core/Src/adc.c:20:6:HAL_ADCEx_InjectedConvCpltCallback	16	static
+../Core/Src/adc.c:33:10:ADC1_GetLastSample	4	static
+../Core/Src/adc.c:38:9:ADC1_TryPopNewSample	16	static

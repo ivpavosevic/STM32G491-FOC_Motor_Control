@@ -13,10 +13,7 @@
 
 /*Use privately the pointer for hadc*/
 void ADC_Init(ADC_HandleTypeDef *hadc);
-/* Start one injected conversion on ADC1 using a SOFTWARE trigger.
- * Safe to call from ISR (e.g., TIM callback). If ADC is busy, it returns immediately.
- */
-void     ADC1_Injected_StartSoft(void);
+
 
 /* Returns the most recent injected conversion raw sample (12-bit right aligned typically). */
 uint16_t ADC1_GetLastSample(void);
@@ -26,8 +23,6 @@ uint16_t ADC1_GetLastSample(void);
  */
 uint8_t  ADC1_TryPopNewSample(uint16_t *out);
 
-/* Returns 1 if an injected conversion is currently running, otherwise 0. */
-uint8_t  ADC1_IsBusy(void);
 
 
 #endif /* INC_ADC_H_ */

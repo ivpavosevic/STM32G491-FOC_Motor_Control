@@ -6,20 +6,20 @@
  */
 #include "adc.h"
 
-static volatile uint8_t adc_busy = 0;
 static ADC_HandleTypeDef *s_hadc;
 
 /* Shared between ISR and main context */
-static volatile uint8_t  s_adc_busy = 0;
 static volatile uint8_t  s_adc_new  = 0;
 static volatile uint16_t s_adc_last = 0;
 
 void ADC_Init(ADC_HandleTypeDef *hadc){
-	s_hadc = hadc;
+
+	HAL_ADCEx_InjectedStart_IT(hadc);
 }
 
 void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
+    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8);
     if (hadc->Instance != ADC1)
         return;
 
@@ -27,22 +27,6 @@ void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)
     s_adc_last = (uint16_t)HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_1);
 
     s_adc_new  = 1;
-    s_adc_busy = 0;
-}
-
-
-void ADC1_Injected_StartSoft(void){
-	//Trigger ADC conversion
-	if(s_adc_busy) return;
-
-	s_adc_busy = 1;
-
-    /* Start ONE injected conversion with interrupt on completion (JEOC) */
-    if (HAL_ADCEx_InjectedStart_IT(s_hadc) != HAL_OK)
-    {
-        /* If start failed, release busy to avoid deadlock */
-        s_adc_busy = 0;
-    }
 
 }
 
@@ -63,9 +47,4 @@ uint8_t ADC1_TryPopNewSample(uint16_t *out)
     *out = s_adc_last;
     s_adc_new = 0;
     return 1;
-}
-
-uint8_t ADC1_IsBusy(void)
-{
-    return s_adc_busy;
 }
