@@ -12,4 +12,6 @@ void Control_Init(TIM_HandleTypeDef *htim_pwm, uint32_t pwm_channel, UART_Handle
 
 void process_line(char *line);
 
+uint8_t readHall(void);
+
 #endif /* INC_CONTROL_H_ */

@@ -1,3 +1,4 @@
-../Core/Src/control.c:20:6:Control_Init	24	static
-../Core/Src/control.c:29:6:process_line	72	static
-../Core/Src/control.c:52:6:HAL_GPIO_EXTI_Callback	224	static
+../Core/Src/control.c:22:6:Control_Init	24	static
+../Core/Src/control.c:44:6:process_line	72	static
+../Core/Src/control.c:68:9:readHall	16	static
+../Core/Src/control.c:100:6:HAL_GPIO_EXTI_Callback	24	static

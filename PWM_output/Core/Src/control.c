@@ -11,7 +11,9 @@
 
 
 static TIM_HandleTypeDef *s_htim_pwm = NULL;
-static uint32_t pwm_ch = 0;
+static uint32_t pwm_ch1 = 0;
+static uint32_t pwm_ch2 = 0;
+static uint32_t pwm_ch3 = 0;
 static UART_HandleTypeDef *s_huart = NULL;
 static volatile uint32_t pwm_duty_pct = 0;
 
@@ -19,13 +21,26 @@ static volatile uint32_t pwm_duty = 0; // Everything turned off in the start
 
 void Control_Init(TIM_HandleTypeDef *htim_pwm, uint32_t pwm_channel, UART_HandleTypeDef *huart){
     s_htim_pwm = htim_pwm;
-    pwm_ch = pwm_channel;
     s_huart = huart;
+    if(htim_pwm->Instance != TIM1) return;
 
-    pwm_set_duty_percent(s_htim_pwm, pwm_ch, pwm_duty);
+    if(htim_pwm->Instance == TIM1){
+    	if(pwm_channel == TIM_CHANNEL_1)
+    	{
+    		pwm_ch1 = pwm_channel;
+    		pwm_set_duty_percent(s_htim_pwm, pwm_ch1, pwm_duty);
+    	} else if (pwm_channel == TIM_CHANNEL_2){
+    		pwm_ch2 = pwm_channel;
+    		pwm_set_duty_percent(s_htim_pwm, pwm_ch2, pwm_duty);
+    	} else if (pwm_channel == TIM_CHANNEL_3){
+    		pwm_ch3 = pwm_channel;
+    		pwm_set_duty_percent(s_htim_pwm, pwm_ch3, pwm_duty);
+    	}
+    }
+
 }
 
-
+/* Old code - used for setting constant PWM duty cycle */
 void process_line(char *line)
 {
     if (strncmp(line, "pwm", 3) == 0) {
@@ -36,7 +51,7 @@ void process_line(char *line)
         if (val > 100) val = 100;
 
         pwm_duty = (uint32_t) val;
-        pwm_set_duty_percent(s_htim_pwm, pwm_ch, pwm_duty);
+        pwm_set_duty_percent(s_htim_pwm, pwm_ch1, pwm_duty);
 
         char ack[32];
         int n = snprintf(ack, sizeof(ack), "OK pwm=%d%%\r\n", val);
@@ -49,11 +64,44 @@ void process_line(char *line)
     HAL_UART_Transmit(s_huart, (uint8_t*)err, strlen(err), HAL_MAX_DELAY);
 }
 
+
+uint8_t readHall(void){
+	uint8_t hall_A, hall_B, hall_C;
+	uint8_t hall_output;
+
+	/* HALL_A reading */
+	if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_4) == GPIO_PIN_SET) {
+		hall_A = 1;
+	} else {
+		hall_A = 0;
+	}
+
+	/* HALL_B reading */
+	if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_5) == GPIO_PIN_SET) {
+		hall_B = 1;
+	} else {
+		hall_B = 0;
+	}
+
+	/* HALL_C reading */
+	if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_2) == GPIO_PIN_SET) {
+		hall_C = 1;
+	} else {
+		hall_C = 0;
+	}
+
+	hall_output = hall_A * 100 + hall_B * 10 + hall_C;
+	return hall_output;
+
+}
+
+
+/* Callback function for pressed 'User' button event */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
     if (GPIO_Pin == GPIO_PIN_13)
     {
-        // debounce softverski
+        /* SW debounce */
         static uint32_t last_press_ms = 0;
         uint32_t now = HAL_GetTick();
 
@@ -64,32 +112,35 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
         last_press_ms = now;
 
         /* Iduce linije koda sluze za testiranje da su sinusi pomaknuti u fazama*/
-//
+        HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_6); // enable
+        HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_11); // disable
+
+
+
 //        float ccr1_print = ccr1x / 4249.0f * 100000;
 //        float ccr2_print = ccr2x / 4249.0f * 100000;
 //        float ccr3_print = ccr3x / 4249.0f * 100000;
-
-
-        // Report na UART
-        char buf1[60];
-        char buf2[60];
-        char buf3[60];
-
-        uint32_t ccr1x = __HAL_TIM_GET_COMPARE(s_htim_pwm, TIM_CHANNEL_1);
-        //uint32_t ccr2x = __HAL_TIM_GET_COMPARE(s_htim_pwm, TIM_CHANNEL_2);
-        //uint32_t ccr3x = __HAL_TIM_GET_COMPARE(s_htim_pwm, TIM_CHANNEL_3);
-
-        uint16_t adc_btn = ADC1_GetLastSample();
-
-//        int n1 = snprintf(buf1, sizeof(buf1), "CH1 ccr = 0.%05d\r\n", (int)ccr1_print);
-//        int n2 = snprintf(buf2, sizeof(buf2), "CH2 ccr = 0.%05d\r\n", (int)ccr2_print);
-//        int n3 = snprintf(buf3, sizeof(buf3), "CH3 ccr = 0.%05d\r\n", (int)ccr3_print);
-        int n1 = snprintf(buf1, sizeof(buf1), "Očitavanje adc[mV] = %d mV\r\n", (int)ADC_TO_MV(adc_btn));
-        int n2 = snprintf(buf2, sizeof(buf2), "Max napon[mV] = %d mV\r\n", 3300);
-        int n3 = snprintf(buf3, sizeof(buf3), "ccr = %d\r\n", (int)ccr1x);
-        HAL_UART_Transmit(s_huart, (uint8_t*)buf1, n1, HAL_MAX_DELAY);
-        HAL_UART_Transmit(s_huart, (uint8_t*)buf2, n2, HAL_MAX_DELAY);
-        HAL_UART_Transmit(s_huart, (uint8_t*)buf3, n3, HAL_MAX_DELAY);
+//
+//        /* Button to enable the start of running */
+//
+//        // Report na UART
+//        char buf1[60];
+//        char buf2[60];
+//        char buf3[60];
+//
+//        uint32_t ccr1x = __HAL_TIM_GET_COMPARE(s_htim_pwm, TIM_CHANNEL_1);
+//        uint32_t ccr2x = __HAL_TIM_GET_COMPARE(s_htim_pwm, TIM_CHANNEL_2);
+//        uint32_t ccr3x = __HAL_TIM_GET_COMPARE(s_htim_pwm, TIM_CHANNEL_3);
+//
+//        uint16_t adc_btn = ADC1_GetLastSample();
+//
+//
+//        int n1 = snprintf(buf1, sizeof(buf1), "Očitavanje adc[mV] = %d mV\r\n", (int)ADC_TO_MV(adc_btn));
+//        int n2 = snprintf(buf2, sizeof(buf2), "Max napon[mV] = %d mV\r\n", 3300);
+//        int n3 = snprintf(buf3, sizeof(buf3), "ccr = %d\r\n", (int)ccr1x);
+//        HAL_UART_Transmit(s_huart, (uint8_t*)buf1, n1, HAL_MAX_DELAY);
+//        HAL_UART_Transmit(s_huart, (uint8_t*)buf2, n2, HAL_MAX_DELAY);
+//        HAL_UART_Transmit(s_huart, (uint8_t*)buf3, n3, HAL_MAX_DELAY);
 
     }
 }

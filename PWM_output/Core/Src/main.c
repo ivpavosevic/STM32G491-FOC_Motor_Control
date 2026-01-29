@@ -50,6 +50,10 @@
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
 
+CORDIC_HandleTypeDef hcordic;
+DMA_HandleTypeDef hdma_cordic_write;
+DMA_HandleTypeDef hdma_cordic_read;
+
 TIM_HandleTypeDef htim1;
 
 UART_HandleTypeDef huart2;
@@ -65,6 +69,7 @@ static void MX_DMA_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_CORDIC_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -107,9 +112,14 @@ int main(void)
   MX_ADC1_Init();
   MX_TIM1_Init();
   MX_USART2_UART_Init();
+  MX_CORDIC_Init();
   /* USER CODE BEGIN 2 */
 
-  /*ADC pretvorba primjer*/
+  /* Set disable and enable output pins */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET); // disable
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET); // enable
+
+  /*ADC calibration*/
   HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
 
  /* Starting all timers - CHx and CHxN channels */
@@ -123,38 +133,36 @@ int main(void)
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
   HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_3);
 
-  // 1) Postavi početni compare za CH4 = 0 (događaj na CNT=0)
-  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_4, 0);
+  /* Set CNT value to trigger the ADC conversion and start the OC */
+  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_4, 20);
   HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_4);
 
+  /* Enable Interrupts on TIM1*/
   HAL_TIM_Base_Start_IT(&htim1);
 
-  // Inicijaliziraj kontrolni sloj (postavit će početni duty na 0%)
+  /* Init of control module, all PWM D.C. set to 0 */
   Control_Init(&htim1, TIM_CHANNEL_1, &huart2);
   Control_Init(&htim1, TIM_CHANNEL_2, &huart2);
   Control_Init(&htim1, TIM_CHANNEL_3, &huart2);
 
-  //ADC Init
+  /* Init of ADC module */
   ADC_Init(&hadc1);
 
-  // Start interrupt for IT
-
-
-  // UART RX s line bufferom
+  /* UART Init - Tx and Rx */
   UART_Init(&huart2);
 
-  const char *msg = "UART ready. Type 'start'\r\n";
+  const char *msg = "UART ready\r\n";
   HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
 
-  //pwm_set_duty_percent(&htim1, TIM_CHANNEL_1, 50);
+  //pwm_set_duty_percent(&htim1, TIM_CHANNEL_1, 50); /* To set FIXED PWM duty cycle */
 
   // Fill LUT table
   if(sinLUT_Init() == SUCCESS){
-	 const char *rep = "Radi\r\n";
+	 const char *rep = "Starting...\r\n";
 	 HAL_UART_Transmit(&huart2, (uint8_t*)rep, strlen(rep), HAL_MAX_DELAY);
   }
 
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET); // for debugging purpose
 
   uint16_t adc_raw = 0;
   uint16_t adc_last_main = 0;
@@ -162,8 +170,42 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  uint32_t last_period_ms = 0;
+  uint32_t now;
+
+  uint8_t hall_read;
+
+  adc_curr_raw_t reading;
+  reading.ia_raw = 0;
+  reading.ib_raw = 0;
+  reading.ic_raw = 0;
+  char buf1[60];
+  char buf2[60];
+  char buf3[60];
+
   while (1)
   {
+	now = HAL_GetTick();
+	if(now - last_period_ms >= 250){
+		last_period_ms = now;
+
+		ADC1_PopCurrentsValues(&reading);
+		uint16_t ia = reading.ia_raw;
+		uint16_t ib = reading.ib_raw;
+		uint16_t ic = reading.ic_raw;
+
+		float Ia = ADC_ConvRawCurrValue(ia);
+		float Ib = ADC_ConvRawCurrValue(ib);
+		float Ic = ADC_ConvRawCurrValue(ic);
+
+		hall_read = readHall();
+
+		int n1 = snprintf(buf1, sizeof(buf1), "Hall = %03d\r\n", (int)hall_read);
+		HAL_UART_Transmit(&huart2, (uint8_t*)buf1, n1, HAL_MAX_DELAY);
+
+
+	}
+
 	if (UART_IsLineReady())
 	{
 		char line[RX_LINE_MAX];
@@ -171,11 +213,8 @@ int main(void)
 		process_line(line);
 	}
 
-    if (ADC1_TryPopNewSample(&adc_raw))
-    {
-        adc_last_main = adc_raw;  // gledaj u debuggeru
 
-    }
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -255,7 +294,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.GainCompensation = 0;
-  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
+  hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   hadc1.Init.LowPowerAutoWait = DISABLE;
   hadc1.Init.ContinuousConvMode = DISABLE;
@@ -281,11 +320,11 @@ static void MX_ADC1_Init(void)
   */
   sConfigInjected.InjectedChannel = ADC_CHANNEL_1;
   sConfigInjected.InjectedRank = ADC_INJECTED_RANK_1;
-  sConfigInjected.InjectedSamplingTime = ADC_SAMPLETIME_640CYCLES_5;
+  sConfigInjected.InjectedSamplingTime = ADC_SAMPLETIME_24CYCLES_5;
   sConfigInjected.InjectedSingleDiff = ADC_SINGLE_ENDED;
   sConfigInjected.InjectedOffsetNumber = ADC_OFFSET_NONE;
   sConfigInjected.InjectedOffset = 0;
-  sConfigInjected.InjectedNbrOfConversion = 1;
+  sConfigInjected.InjectedNbrOfConversion = 4;
   sConfigInjected.InjectedDiscontinuousConvMode = DISABLE;
   sConfigInjected.AutoInjectedConv = DISABLE;
   sConfigInjected.QueueInjectedContext = DISABLE;
@@ -296,9 +335,63 @@ static void MX_ADC1_Init(void)
   {
     Error_Handler();
   }
+
+  /** Configure Injected Channel
+  */
+  sConfigInjected.InjectedChannel = ADC_CHANNEL_6;
+  sConfigInjected.InjectedRank = ADC_INJECTED_RANK_2;
+  if (HAL_ADCEx_InjectedConfigChannel(&hadc1, &sConfigInjected) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Injected Channel
+  */
+  sConfigInjected.InjectedChannel = ADC_CHANNEL_7;
+  sConfigInjected.InjectedRank = ADC_INJECTED_RANK_3;
+  if (HAL_ADCEx_InjectedConfigChannel(&hadc1, &sConfigInjected) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Injected Channel
+  */
+  sConfigInjected.InjectedChannel = ADC_CHANNEL_5;
+  sConfigInjected.InjectedRank = ADC_INJECTED_RANK_4;
+  sConfigInjected.InjectedSamplingTime = ADC_SAMPLETIME_2CYCLES_5;
+  if (HAL_ADCEx_InjectedConfigChannel(&hadc1, &sConfigInjected) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE BEGIN ADC1_Init 2 */
 
   /* USER CODE END ADC1_Init 2 */
+
+}
+
+/**
+  * @brief CORDIC Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_CORDIC_Init(void)
+{
+
+  /* USER CODE BEGIN CORDIC_Init 0 */
+
+  /* USER CODE END CORDIC_Init 0 */
+
+  /* USER CODE BEGIN CORDIC_Init 1 */
+
+  /* USER CODE END CORDIC_Init 1 */
+  hcordic.Instance = CORDIC;
+  if (HAL_CORDIC_Init(&hcordic) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN CORDIC_Init 2 */
+
+  /* USER CODE END CORDIC_Init 2 */
 
 }
 
@@ -353,7 +446,7 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.OCMode = TIM_OCMODE_PWM2;
   sConfigOC.Pulse = 0;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
@@ -372,7 +465,7 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_ACTIVE;
+  sConfigOC.OCMode = TIM_OCMODE_TOGGLE;
   if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
   {
     Error_Handler();
@@ -463,6 +556,12 @@ static void MX_DMA_Init(void)
   /* DMA1_Channel1_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+  /* DMA1_Channel2_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel2_IRQn);
+  /* DMA1_Channel3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel3_IRQn);
 
 }
 
@@ -514,12 +613,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(HALL_C_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : PB10 */
-  GPIO_InitStruct.Pin = GPIO_PIN_10;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pin : Test_pin_Pin */
   GPIO_InitStruct.Pin = Test_pin_Pin;

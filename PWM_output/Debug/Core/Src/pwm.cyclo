@@ -1,4 +1,4 @@
-../Core/Src/pwm.c:14:6:pwm_set_duty_percent	8
-../Core/Src/pwm.c:23:6:HAL_TIM_PeriodElapsedCallback	3
-../Core/Src/pwm.c:51:10:PWM_GetCCR1_1st	1
-../Core/Src/pwm.c:55:10:PWM_GetCCR1_2nd	1
+../Core/Src/pwm.c:15:6:pwm_set_duty_percent	8
+../Core/Src/pwm.c:25:6:HAL_TIM_PeriodElapsedCallback	4
+../Core/Src/pwm.c:60:10:PWM_GetCCR1_1st	1
+../Core/Src/pwm.c:64:10:PWM_GetCCR1_2nd	1

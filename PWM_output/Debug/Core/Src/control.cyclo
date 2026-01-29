@@ -1,3 +1,4 @@
-../Core/Src/control.c:20:6:Control_Init	1
-../Core/Src/control.c:29:6:process_line	7
-../Core/Src/control.c:52:6:HAL_GPIO_EXTI_Callback	3
+../Core/Src/control.c:22:6:Control_Init	6
+../Core/Src/control.c:44:6:process_line	7
+../Core/Src/control.c:68:9:readHall	4
+../Core/Src/control.c:100:6:HAL_GPIO_EXTI_Callback	3
