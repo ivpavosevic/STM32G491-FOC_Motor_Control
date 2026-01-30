@@ -60,8 +60,8 @@ all: main-build
 main-build: PWM_output.elf secondary-outputs
 
 # Tool invocations
-PWM_output.elf PWM_output.map: $(OBJS) $(USER_OBJS) C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\STM32G491RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "PWM_output.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\STM32G491RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="PWM_output.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+PWM_output.elf PWM_output.map: $(OBJS) $(USER_OBJS) C:\Users\matev\Documents\dipl_projekt\FOC_motor_control\STM32G491-FOC_Motor_Control\PWM_output\STM32G491RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "PWM_output.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\matev\Documents\dipl_projekt\FOC_motor_control\STM32G491-FOC_Motor_Control\PWM_output\STM32G491RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="PWM_output.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

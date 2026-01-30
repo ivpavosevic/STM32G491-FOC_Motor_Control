@@ -159,18 +159,18 @@ int main(void) {
   // cycle */
 
   // Fill LUT table (legacy - can be removed later)
-  sinLUT_Init();
+  //sinLUT_Init();
 
   // Initialize CORDIC sine module
   // PWM freq = 100MHz / (2 * 2000) = 25 kHz (center-aligned, ARR=1999)
-  if (CORDIC_Sin_Init(&hcordic, 25000.0f) == CORDIC_SIN_OK) {
+  if (CORDIC_Sin_Init(&hcordic, 50000.0f) == CORDIC_SIN_OK) {
     // Set initial motor frequency (Hz) - adjust as needed
     CORDIC_Sin_SetFrequency(1.0f); // 1 Hz starting frequency
-    const char *rep = "CORDIC initialized, motor starting...\r\n";
-    HAL_UART_Transmit(&huart2, (uint8_t *)rep, strlen(rep), HAL_MAX_DELAY);
-  } else {
-    const char *err = "CORDIC init failed!\r\n";
-    HAL_UART_Transmit(&huart2, (uint8_t *)err, strlen(err), HAL_MAX_DELAY);
+    //const char *rep = "CORDIC initialized, motor starting...\r\n";
+    //HAL_UART_Transmit(&huart2, (uint8_t *)rep, strlen(rep), HAL_MAX_DELAY);
+  //} else {
+    //const char *err = "CORDIC init failed!\r\n";
+    //HAL_UART_Transmit(&huart2, (uint8_t *)err, strlen(err), HAL_MAX_DELAY);
   }
 
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET); // for debugging purpose

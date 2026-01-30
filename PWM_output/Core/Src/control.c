@@ -45,47 +45,6 @@ void Control_Init(TIM_HandleTypeDef *htim_pwm, uint32_t pwm_channel,
  *   mod <0..100>  - set modulation index percentage (e.g., "mod 50" = 0.5)
  */
 void process_line(char *line) {
-  /* FREQ command - set motor electrical frequency */
-  if (strncmp(line, "freq", 4) == 0) {
-    line += 4;
-    while (*line == ' ' || *line == '\t')
-      line++;
-    float freq = (*line) ? (float)atof(line) : -1.0f;
-
-    if (freq < 0.0f)
-      freq = 0.0f;
-    if (freq > 500.0f)
-      freq = 500.0f; /* Max 500 Hz */
-
-    PWM_SetMotorFrequency(freq);
-
-    char ack[48];
-    int n = snprintf(ack, sizeof(ack), "OK freq=%.1f Hz\r\n", freq);
-    HAL_UART_Transmit(s_huart, (uint8_t *)ack, n, HAL_MAX_DELAY);
-    return;
-  }
-
-  /* MOD command - set modulation index */
-  if (strncmp(line, "mod", 3) == 0) {
-    line += 3;
-    while (*line == ' ' || *line == '\t')
-      line++;
-    int val = (*line) ? atoi(line) : -1;
-
-    if (val < 0)
-      val = 0;
-    if (val > 100)
-      val = 100;
-
-    float m = (float)val / 100.0f;
-    PWM_SetModulationIndex(m);
-
-    char ack[48];
-    int n = snprintf(ack, sizeof(ack), "OK mod=%d%% (%.2f)\r\n", val, m);
-    HAL_UART_Transmit(s_huart, (uint8_t *)ack, n, HAL_MAX_DELAY);
-    return;
-  }
-
   /* PWM command - set fixed duty cycle (legacy) */
   if (strncmp(line, "pwm", 3) == 0) {
     line += 3;

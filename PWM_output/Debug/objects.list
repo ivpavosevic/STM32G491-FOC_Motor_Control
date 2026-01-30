@@ -1,5 +1,6 @@
 "./Core/Src/adc.o"
 "./Core/Src/control.o"
+"./Core/Src/cordic_sin.o"
 "./Core/Src/main.o"
 "./Core/Src/pwm.o"
 "./Core/Src/sin_lut.o"
