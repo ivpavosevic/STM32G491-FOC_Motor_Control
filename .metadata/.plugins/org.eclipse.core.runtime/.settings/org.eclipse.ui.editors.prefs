@@ -1,0 +1,9 @@
+AbstractTextEditor.Color.Background=48,48,48
+AbstractTextEditor.Color.SelectionBackground=187,187,187
+AbstractTextEditor.Color.SelectionForeground=222,222,222
+currentLine=true
+currentLineColor=52,52,52
+eclipse.preferences.version=1
+lineNumberRuler=true
+printMargin=true
+printMarginColumn=100
