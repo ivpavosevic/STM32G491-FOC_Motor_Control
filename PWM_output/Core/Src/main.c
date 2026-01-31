@@ -160,6 +160,7 @@ int main(void) {
 
   // Fill LUT table (legacy - can be removed later)
   //sinLUT_Init();
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET); // for debugging purpose
 
   // Initialize CORDIC sine module
   // PWM freq = 100MHz / (2 * 2000) = 25 kHz (center-aligned, ARR=1999)
@@ -172,8 +173,6 @@ int main(void) {
     //const char *err = "CORDIC init failed!\r\n";
     //HAL_UART_Transmit(&huart2, (uint8_t *)err, strlen(err), HAL_MAX_DELAY);
   }
-
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET); // for debugging purpose
 
   uint16_t adc_raw = 0;
   uint16_t adc_last_main = 0;
@@ -194,24 +193,32 @@ int main(void) {
   char buf2[60];
   char buf3[60];
 
+  uint8_t flag_en = 1;
+  uint8_t flag_dis = 1;
+
   while (1) {
     now = HAL_GetTick();
-    if (now - last_period_ms >= 250) {
-      last_period_ms = now;
+    if ((now - last_period_ms >= 3000) & (flag_en == 1)) {
 
-      ADC1_PopCurrentsValues(&reading);
-      uint16_t ia = reading.ia_raw;
-      uint16_t ib = reading.ib_raw;
-      uint16_t ic = reading.ic_raw;
+      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_SET); // enable
+      flag_en = 0;
 
-      float Ia = ADC_ConvRawCurrValue(ia);
-      float Ib = ADC_ConvRawCurrValue(ib);
-      float Ic = ADC_ConvRawCurrValue(ic);
-
-      hall_read = readHall();
-
-      int n1 = snprintf(buf1, sizeof(buf1), "Hall = %03d\r\n", (int)hall_read);
-      HAL_UART_Transmit(&huart2, (uint8_t *)buf1, n1, HAL_MAX_DELAY);
+//      ADC1_PopCurrentsValues(&reading);
+//      uint16_t ia = reading.ia_raw;
+//      uint16_t ib = reading.ib_raw;
+//      uint16_t ic = reading.ic_raw;
+//
+//      float Ia = ADC_ConvRawCurrValue(ia);
+//      float Ib = ADC_ConvRawCurrValue(ib);
+//      float Ic = ADC_ConvRawCurrValue(ic);
+//
+//      hall_read = readHall();
+//
+//      int n1 = snprintf(buf1, sizeof(buf1), "Hall = %03d\r\n", (int)hall_read);
+//      HAL_UART_Transmit(&huart2, (uint8_t *)buf1, n1, HAL_MAX_DELAY);
+    } if ((now - last_period_ms >= 7000) & (flag_dis == 1)){
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET); // enable
+        flag_dis = 0;
     }
 
     if (UART_IsLineReady()) {

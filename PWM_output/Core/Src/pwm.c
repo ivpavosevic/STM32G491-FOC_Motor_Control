@@ -13,7 +13,7 @@ static volatile uint16_t ccr1_1st = 0;
 static volatile uint16_t ccr1_2nd = 0;
 
 /* Modulation index (0.0 to 1.0) - controls amplitude */
-static float s_modulation_index = 0.5f;
+static float s_modulation_index = 0.1f;
 
 /* ============ Public functions ============ */
 

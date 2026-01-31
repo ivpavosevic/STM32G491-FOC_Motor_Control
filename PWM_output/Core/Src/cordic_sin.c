@@ -105,7 +105,7 @@ static int cordic_calculate(int32_t angle_q31, float *sin_out, float *cos_out) {
   }
 
   /* Execute CORDIC calculation (polling mode - fastest for single value) */
-  if (HAL_CORDIC_Calculate(s_hcordic, &input, output, 1, HAL_MAX_DELAY) != HAL_OK) {
+  if (HAL_CORDIC_Calculate(s_hcordic, &input, output, 1, 10) != HAL_OK) {
     return CORDIC_SIN_ERROR;
   }
 

@@ -111,9 +111,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     }
     last_press_ms = now;
 
+    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8); // debug purpose
+
     /* Iduce linije koda sluze za testiranje da su sinusi pomaknuti u fazama*/
     HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_6);  // enable
     HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_11); // disable
+
 
     //        float ccr1_print = ccr1x / 4249.0f * 100000;
     //        float ccr2_print = ccr2x / 4249.0f * 100000;
