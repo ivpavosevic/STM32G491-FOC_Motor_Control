@@ -1,3 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<session version="1.0">&#x0A;<refactoring comment="Rename resource &apos;PWM_output/Core/Src/sin3.c&apos; to &apos;sin_lut.c&apos;" description="Rename resource &apos;sin3.c&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="Core/Src/sin3.c" name="sin_lut.c" stamp="1765821983405" updateReferences="true"/>&#x0A;<refactoring comment="Rename resource &apos;PWM_output/Core/Inc/sin3.h&apos; to &apos;sin_lut.h&apos;" description="Rename resource &apos;sin3.h&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="Core/Inc/sin3.h" name="sin_lut.h" stamp="1765821996170" updateReferences="true"/>
-</session>
