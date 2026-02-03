@@ -166,7 +166,7 @@ int main(void) {
   // PWM freq = 100MHz / (2 * 2000) = 25 kHz (center-aligned, ARR=1999)
   if (CORDIC_Sin_Init(&hcordic, 50000.0f) == CORDIC_SIN_OK) {
     // Set initial motor frequency (Hz) - adjust as needed
-    CORDIC_Sin_SetFrequency(100.0f); // 1 Hz starting frequency
+    CORDIC_Sin_SetFrequency(4.0f); // 1 Hz starting frequency
     //const char *rep = "CORDIC initialized, motor starting...\r\n";
     //HAL_UART_Transmit(&huart2, (uint8_t *)rep, strlen(rep), HAL_MAX_DELAY);
   //} else {
@@ -198,11 +198,7 @@ int main(void) {
 
   while (1) {
     now = HAL_GetTick();
-    if ((now - last_period_ms >= 3000) & (flag_en == 1)) {
-
-      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_SET); // enable
-      flag_en = 0;
-
+    if ((now - last_period_ms >= 750)) {
 //      ADC1_PopCurrentsValues(&reading);
 //      uint16_t ia = reading.ia_raw;
 //      uint16_t ib = reading.ib_raw;
@@ -212,13 +208,12 @@ int main(void) {
 //      float Ib = ADC_ConvRawCurrValue(ib);
 //      float Ic = ADC_ConvRawCurrValue(ic);
 //
-//      hall_read = readHall();
+      hall_read = readHall();
 //
-//      int n1 = snprintf(buf1, sizeof(buf1), "Hall = %03d\r\n", (int)hall_read);
-//      HAL_UART_Transmit(&huart2, (uint8_t *)buf1, n1, HAL_MAX_DELAY);
-    } if ((now - last_period_ms >= 7000) & (flag_dis == 1)){
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET); // enable
-        flag_dis = 0;
+      int n1 = snprintf(buf1, sizeof(buf1), "Hall = %03d\r\n", (int)hall_read);
+      HAL_UART_Transmit(&huart2, (uint8_t *)buf1, n1, HAL_MAX_DELAY);
+
+      last_period_ms = now;
     }
 
     if (UART_IsLineReady()) {

@@ -25,7 +25,7 @@ void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
     if (hadc->Instance != ADC1)
         return;
-    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8); // for debugging purposes
+    //HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8); // for debugging purposes
     /* Current sensing - pin PA0 */
     s_raw.ia_raw = (uint16_t)HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_1);
 
@@ -34,7 +34,7 @@ void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)
 
     /* Current sensing - pin PC1 */
     s_raw.ic_raw = (uint16_t)HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_3);
-    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8); // for debugging purposes
+    //HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8); // for debugging purposes
 
     s_adc_new  = 1;
 
