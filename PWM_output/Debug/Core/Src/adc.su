@@ -1,4 +1,4 @@
-../Core/Src/adc.c:19:6:ADC_Init	16	static
-../Core/Src/adc.c:24:6:HAL_ADCEx_InjectedConvCpltCallback	16	static
-../Core/Src/adc.c:43:7:ADC_ConvRawCurrValue	24	static
-../Core/Src/adc.c:50:9:ADC1_PopCurrentsValues	16	static
+../Core/Src/adc.c:28:6:ADC_Init	16	static
+../Core/Src/adc.c:32:6:HAL_ADCEx_InjectedConvCpltCallback	16	static
+../Core/Src/adc.c:51:7:ADC_ConvRawCurrValue	24	static
+../Core/Src/adc.c:67:9:ADC1_PopCurrentsValues	16	static

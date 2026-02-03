@@ -9,7 +9,12 @@
 #define INC_ADC_H_
 #include "main.h"
 
-#define R_shunt 1.0f
+#define ADC_CAL_SIZE 256
+#define R_SHUNT 0.001f
+#define ADC_MAX_VALUE 4095
+#define GAIN 50
+#define VREF 3.3f
+
 #define ADC_TO_MV(x) ((x) * 3300UL / 4095UL)
 
 typedef struct {
@@ -27,8 +32,6 @@ void ADC_Init(ADC_HandleTypeDef *hadc);
  */
 uint8_t ADC1_PopCurrentsValues(adc_curr_raw_t *out);
 
-float ADC_ConvRawCurrValue(uint16_t raw_v);
-
-
+float ADC_ConvRawCurrValue(uint16_t raw_v, uint8_t phase);
 
 #endif /* INC_ADC_H_ */

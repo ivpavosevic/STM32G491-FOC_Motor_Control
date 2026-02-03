@@ -15,9 +15,17 @@ static volatile uint16_t I_a = 0;
 static volatile uint16_t I_b = 0;
 static volatile uint16_t I_c = 0;
 
+static volatile uint16_t i_a_raw;
+static volatile uint16_t i_b_raw;
+static volatile uint16_t i_b_raw;
+
+
+static uint16_t offsetA, offsetB, offsetC;
+
+const static float conv_const = VREF / (ADC_MAX_VALUE * GAIN * R_SHUNT);
+
 
 void ADC_Init(ADC_HandleTypeDef *hadc){
-
 	HAL_ADCEx_InjectedStart_IT(hadc);
 }
 
@@ -40,11 +48,20 @@ void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)
 
 }
 
-float ADC_ConvRawCurrValue(uint16_t raw_v){
+float ADC_ConvRawCurrValue(uint16_t raw_v, uint8_t phase){
 	// Convert voltage reading to current with R_shunt = 0.001 Ohm
-	uint32_t conv_v = ADC_TO_MV(raw_v);
-	return (float) conv_v / R_shunt;
+	int16_t raw_v_offs;
+	if(phase == 1){
+		raw_v_offs = raw_v;
+	} else if(phase == 2) {
+		raw_v_offs = raw_v;
+	} else if (phase == 3){
+		raw_v_offs = raw_v;
+	}
+	float conv_v = (raw_v_offs - 2048.0f)* conv_const;
+	return conv_v;
 }
+
 
 
 uint8_t ADC1_PopCurrentsValues(adc_curr_raw_t  *out)

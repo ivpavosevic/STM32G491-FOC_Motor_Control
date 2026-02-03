@@ -199,12 +199,12 @@ int main(void) {
   while (1) {
     now = HAL_GetTick();
     if ((now - last_period_ms >= 750)) {
-//      ADC1_PopCurrentsValues(&reading);
-//      uint16_t ia = reading.ia_raw;
+      ADC1_PopCurrentsValues(&reading);
+      uint16_t ia = reading.ia_raw;
 //      uint16_t ib = reading.ib_raw;
 //      uint16_t ic = reading.ic_raw;
 //
-//      float Ia = ADC_ConvRawCurrValue(ia);
+      float Ia = ADC_ConvRawCurrValue(ia, 1) * 100;
 //      float Ib = ADC_ConvRawCurrValue(ib);
 //      float Ic = ADC_ConvRawCurrValue(ic);
 //
@@ -212,6 +212,8 @@ int main(void) {
 //
       int n1 = snprintf(buf1, sizeof(buf1), "Hall = %03d\r\n", (int)hall_read);
       HAL_UART_Transmit(&huart2, (uint8_t *)buf1, n1, HAL_MAX_DELAY);
+      int n2 = snprintf(buf2, sizeof(buf2), "Current Ia in mA = %03d\r\n", (int)Ia);
+      HAL_UART_Transmit(&huart2, (uint8_t *)buf2, n2, HAL_MAX_DELAY);
 
       last_period_ms = now;
     }
