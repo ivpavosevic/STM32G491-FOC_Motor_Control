@@ -90,20 +90,6 @@ static int cordic_calculate(int32_t angle_q31, float *sin_out, float *cos_out) {
   int32_t input = angle_q31;
   int32_t output[2]; /* [0] = sine, [1] = cosine */
 
-  /* Configure CORDIC for sine calculation */
-  CORDIC_ConfigTypeDef config = {0};
-  config.Function = CORDIC_FUNCTION_SINE;
-  config.Scale = CORDIC_SCALE_0;
-  config.InSize = CORDIC_INSIZE_32BITS;
-  config.OutSize = CORDIC_OUTSIZE_32BITS;
-  config.NbWrite = CORDIC_NBWRITE_1;
-  config.NbRead = (cos_out != NULL) ? CORDIC_NBREAD_2 : CORDIC_NBREAD_1;
-  config.Precision = CORDIC_PRECISION_6CYCLES; /* 6 cycles = good precision */
-
-  if (HAL_CORDIC_Configure(s_hcordic, &config) != HAL_OK) {
-    return CORDIC_SIN_ERROR;
-  }
-
   /* Execute CORDIC calculation (polling mode - fastest for single value) */
   if (HAL_CORDIC_Calculate(s_hcordic, &input, output, 1, 10) != HAL_OK) {
     return CORDIC_SIN_ERROR;

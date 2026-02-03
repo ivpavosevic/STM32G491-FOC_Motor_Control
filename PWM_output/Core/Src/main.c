@@ -166,7 +166,7 @@ int main(void) {
   // PWM freq = 100MHz / (2 * 2000) = 25 kHz (center-aligned, ARR=1999)
   if (CORDIC_Sin_Init(&hcordic, 50000.0f) == CORDIC_SIN_OK) {
     // Set initial motor frequency (Hz) - adjust as needed
-    CORDIC_Sin_SetFrequency(1.0f); // 1 Hz starting frequency
+    CORDIC_Sin_SetFrequency(100.0f); // 1 Hz starting frequency
     //const char *rep = "CORDIC initialized, motor starting...\r\n";
     //HAL_UART_Transmit(&huart2, (uint8_t *)rep, strlen(rep), HAL_MAX_DELAY);
   //} else {
@@ -383,6 +383,16 @@ static void MX_CORDIC_Init(void) {
   /* USER CODE END CORDIC_Init 0 */
 
   /* USER CODE BEGIN CORDIC_Init 1 */
+  /* Configure CORDIC for sine calculation */
+  CORDIC_ConfigTypeDef config = {0};
+  config.Function = CORDIC_FUNCTION_SINE;
+  config.Scale = CORDIC_SCALE_0;
+  config.InSize = CORDIC_INSIZE_32BITS;
+  config.OutSize = CORDIC_OUTSIZE_32BITS;
+  config.NbWrite = CORDIC_NBWRITE_1;
+  config.NbRead = CORDIC_NBREAD_1;
+  config.Precision = CORDIC_PRECISION_6CYCLES; /* 6 cycles = good precision */
+
 
   /* USER CODE END CORDIC_Init 1 */
   hcordic.Instance = CORDIC;
@@ -390,7 +400,9 @@ static void MX_CORDIC_Init(void) {
     Error_Handler();
   }
   /* USER CODE BEGIN CORDIC_Init 2 */
-
+  if (HAL_CORDIC_Configure(&hcordic, &config) != HAL_OK) {
+	  Error_Handler();
+  }
   /* USER CODE END CORDIC_Init 2 */
 }
 
