@@ -58,6 +58,8 @@ static float s_pwm_freq_hz = 50000.0f;
 /* Current electrical frequency */
 static float s_elec_freq_hz = 1.0f;
 
+static volatile uint32_t counter = 0;
+
 /* ============ Private functions ============ */
 
 /**
@@ -67,12 +69,26 @@ static float s_elec_freq_hz = 1.0f;
 static inline int32_t radians_to_q31(float angle_rad) {
   return (int32_t)((angle_rad / M_PI) * Q31_SCALE);
 }
-
 /**
  * @brief Convert Q31 to float (-1.0 to 1.0)
  */
 static inline float q31_to_float(int32_t q31_val) {
   return (float)q31_val / Q31_SCALE;
+}
+
+static inline float degree_to_radians(int32_t angle_deg) {
+  return ((angle_deg * M_PI) / 180.0);
+}
+
+static inline int32_t radians_to_degree(float angle_rad) {
+  return (int32_t)((angle_rad * 180.0)/ M_PI);
+}
+
+static inline int32_t q31_angle_to_deg(int32_t angle_q31)
+{
+    /* Koristimo 64-bit da izbjegnemo overflow */
+    int64_t tmp = (int64_t)angle_q31 * 180;
+    return (int32_t)(tmp >> 31);
 }
 
 /**
@@ -106,6 +122,42 @@ static int cordic_calculate(int32_t angle_q31, float *sin_out, float *cos_out) {
   return CORDIC_SIN_OK;
 }
 
+void CORDIC_Change_Constant_Angle(uint8_t angle_flag){
+	float angle;
+	switch (angle_flag) {
+	  case 0:
+	  	s_angle_uq31 = 0;
+	    break;
+	  case 1:
+		  angle = degree_to_radians(60);
+		  s_angle_uq31 = radians_to_q31(angle);
+	    break;
+	  case 2:
+		  angle = degree_to_radians(120);
+		  s_angle_uq31 = radians_to_q31(angle);
+	    break;
+	  case 3:
+		  angle = degree_to_radians(180);
+		  s_angle_uq31 = radians_to_q31(angle);
+	    break;
+	  case 4:
+		  angle = degree_to_radians(240);
+		  s_angle_uq31 = radians_to_q31(angle);
+	    break;
+	  case 5:
+		  angle = degree_to_radians(300);
+		  s_angle_uq31 = radians_to_q31(angle);
+	    break;
+	  case 6:
+		  s_angle_uq31 = 0;
+	    break;
+	  default:
+
+	}
+
+}
+
+
 /* ============ Public API Implementation ============ */
 
 int CORDIC_Sin_Init(CORDIC_HandleTypeDef *hcordic_ptr, float pwm_freq_hz) {
@@ -120,6 +172,10 @@ int CORDIC_Sin_Init(CORDIC_HandleTypeDef *hcordic_ptr, float pwm_freq_hz) {
   s_elec_freq_hz = 0.0f;
 
   return CORDIC_SIN_OK;
+}
+
+int32_t CORDIC_Get_Angle(void){
+	return q31_angle_to_deg(s_angle_uq31);
 }
 
 void CORDIC_Sin_SetFrequency(float freq_hz) {
@@ -156,30 +212,10 @@ int CORDIC_Sin_Get3Phase(float *sin_a, float *sin_b, float *sin_c) {
   if (result != CORDIC_SIN_OK) return result;
 
   /* Auto-advance angle (wrap is defined for uint32_t) */
+
   s_angle_uq31 += s_delta_uq31;
+  //CORDIC_Change_Constant_Angle(0); // number in brackets is angle * 60
+  //s_angle_uq31 = 0;
 
   return CORDIC_SIN_OK;
 }
-
-int CORDIC_Sin_Get(float *sin_out, float *cos_out) {
-  int result = cordic_calculate((int32_t)s_angle_uq31, sin_out, cos_out);
-
-  if (result == CORDIC_SIN_OK) {
-    /* Auto-advance angle */
-    s_angle_uq31 += s_delta_uq31;
-  }
-
-  return result;
-}
-
-int CORDIC_Sin_GetWithOffset(float phase_offset_deg, float *sin_out) {
-  float offset_rad = phase_offset_deg * M_PI / 180.0f;
-  int32_t offset_q31 = radians_to_q31(offset_rad);
-
-  /* Do addition in unsigned space to avoid signed overflow UB */
-  uint32_t angle = s_angle_uq31 + (uint32_t)offset_q31;
-
-  return cordic_calculate((int32_t)angle, sin_out, NULL);
-}
-
-void CORDIC_Sin_Advance(void) { s_angle_uq31 += s_delta_uq31; }

@@ -8,13 +8,22 @@
 #include "adc.h"
 #include "pwm.h"
 #include "uart.h"
+#include "cordic_sin.h"
+#include "control.h"
 
 static TIM_HandleTypeDef *s_htim_pwm = NULL;
 static uint32_t pwm_ch1 = 0;
 static uint32_t pwm_ch2 = 0;
 static uint32_t pwm_ch3 = 0;
+
+static volatile uint32_t counter_hall = 0;
+static volatile uint32_t hall_state = 0;
+static volatile uint8_t print_flag = 0;
+
 static UART_HandleTypeDef *s_huart = NULL;
 static volatile uint32_t pwm_duty_pct = 0;
+
+static int32_t array_states[2*TEST_SIZE];
 
 static volatile uint32_t pwm_duty = 0; // Everything turned off in the start
 
@@ -69,9 +78,9 @@ void process_line(char *line) {
   HAL_UART_Transmit(s_huart, (uint8_t *)err, strlen(err), HAL_MAX_DELAY);
 }
 
-uint8_t readHall(void) {
-  uint8_t hall_A, hall_B, hall_C;
-  uint8_t hall_output;
+uint32_t readHall(void) {
+  uint32_t hall_A, hall_B, hall_C;
+  uint32_t hall_output;
 
   /* HALL_A reading */
   if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_4) == GPIO_PIN_SET) {
@@ -98,50 +107,64 @@ uint8_t readHall(void) {
   return hall_output;
 }
 
+
+int32_t readAngle(void){
+	return CORDIC_Get_Angle();
+}
+
+int getCounterHallA(void){ return counter_hall; }
+
 /* Callback function for pressed 'User' button event */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
   if (GPIO_Pin == GPIO_PIN_13) {
     /* SW debounce */
     static uint32_t last_press_ms = 0;
     uint32_t now = HAL_GetTick();
+    int hallA_read = 0;
+    char buf4[60];
+    char buf5[60];
 
-    // Ako je tipka stisnuta prebrzo zaredom (<200ms), ignoriraj
+    /* Ako je tipka stisnuta prebrzo zaredom (<200ms), ignoriraj */
     if ((now - last_press_ms) < 200) {
       return;
     }
     last_press_ms = now;
-
-    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8); // debug purpose
 
     /* Iduce linije koda sluze za testiranje da su sinusi pomaknuti u fazama*/
     HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_6);  // enable
     HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_11); // disable
 
 
-    //        float ccr1_print = ccr1x / 4249.0f * 100000;
-    //        float ccr2_print = ccr2x / 4249.0f * 100000;
-    //        float ccr3_print = ccr3x / 4249.0f * 100000;
-    //
-    //        /* Button to enable the start of running */
-    //
-    //        // Report na UART
-    //        char buf1[60];
-    //        char buf2[60];
-    //        char buf3[60];
-    //
-    //        uint32_t ccr1x = __HAL_TIM_GET_COMPARE(s_htim_pwm, TIM_CHANNEL_1);
-    //        uint32_t ccr2x = __HAL_TIM_GET_COMPARE(s_htim_pwm, TIM_CHANNEL_2);
-    //        uint32_t ccr3x = __HAL_TIM_GET_COMPARE(s_htim_pwm, TIM_CHANNEL_3);
-    //
-    //        uint16_t adc_btn = ADC1_GetLastSample();
-    //
-    //
-    //        int n1 = snprintf(buf1, sizeof(buf1), "Očitavanje adc[mV] = %d
-    //        mV\r\n", (int)ADC_TO_MV(adc_btn)); int n2 = snprintf(buf2,
-    //        sizeof(buf2), "Max napon[mV] = %d mV\r\n", 3300); int n3 =
-    //        snprintf(buf3, sizeof(buf3), "ccr = %d\r\n", (int)ccr1x);
-    //        HAL_UART_Transmit(s_huart, (uint8_t*)buf1, n1, HAL_MAX_DELAY);
-    //        HAL_UART_Transmit(s_huart, (uint8_t*)buf2, n2, HAL_MAX_DELAY);
-    //        HAL_UART_Transmit(s_huart, (uint8_t*)buf3, n3, HAL_MAX_DELAY);
+    hallA_read = counter_hall;
+    hall_state = readHall();
+    int n4;
+    int n5;
+    if(print_flag){
+    	for(uint8_t i = 0; i<= TEST_SIZE; i = i + 2 ) {
+    		n4 = snprintf(buf4, sizeof(buf4), "Hall state = --- %03d\r\n", (int)array_states[2 * i]);
+            HAL_UART_Transmit(s_huart, (uint8_t *)buf4, n4, HAL_MAX_DELAY);
+            n5 = snprintf(buf5, sizeof(buf5), "Angle = --- %03d\r\n", (int)array_states[2*i + 1]);
+            HAL_UART_Transmit(s_huart, (uint8_t *)buf5, n5, HAL_MAX_DELAY);
+    	}
+
+    }
+
+
+  } else if (GPIO_Pin == GPIO_PIN_4 || GPIO_Pin == GPIO_PIN_5 || GPIO_Pin == GPIO_PIN_2){
+	  int32_t hall_state_new = (int32_t)readHall();
+	  int32_t angle_new = readAngle();
+	  if (hall_state_new != hall_state){
+		  hall_state = hall_state_new;
+
+		  if(counter_hall < TEST_SIZE){
+			  array_states[2*counter_hall] = hall_state_new;
+			  array_states[2*counter_hall + 1] = angle_new;
+
+		  } else{
+			  print_flag = 1;
+		  }
+
+		  counter_hall++;
+	  }
   }
 }

@@ -13,9 +13,7 @@
 #define R_SHUNT 0.001f
 #define ADC_MAX_VALUE 4095
 #define GAIN 50
-#define VREF 3.3f
-
-#define ADC_TO_MV(x) ((x) * 3300UL / 4095UL)
+#define VREF_MV 3300.0f
 
 typedef struct {
     uint16_t ia_raw;
@@ -33,5 +31,7 @@ void ADC_Init(ADC_HandleTypeDef *hadc);
 uint8_t ADC1_PopCurrentsValues(adc_curr_raw_t *out);
 
 float ADC_ConvRawCurrValue(uint16_t raw_v, uint8_t phase);
+
+void ADC_StartCalibration(ADC_HandleTypeDef *hadc);
 
 #endif /* INC_ADC_H_ */

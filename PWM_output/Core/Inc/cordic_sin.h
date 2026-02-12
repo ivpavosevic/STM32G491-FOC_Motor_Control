@@ -16,6 +16,10 @@
 #define CORDIC_SIN_OK 0
 #define CORDIC_SIN_ERROR -1
 
+int32_t CORDIC_Get_Angle(void);
+
+void CORDIC_Change_Constant_Angle(uint8_t angle_flag);
+
 /**
  * @brief Initialize CORDIC sine module
  * @param hcordic_ptr Pointer to CORDIC handle (from CubeMX)
@@ -53,25 +57,5 @@ void CORDIC_Sin_ResetAngle(void);
  */
 int CORDIC_Sin_Get3Phase(float *sin_a, float *sin_b, float *sin_c);
 
-/**
- * @brief Get single sine value at current angle and advance
- * @param sin_out Pointer to store sine value (-1.0 to 1.0)
- * @param cos_out Pointer to store cosine value (can be NULL)
- * @retval CORDIC_SIN_OK on success
- */
-int CORDIC_Sin_Get(float *sin_out, float *cos_out);
-
-/**
- * @brief Get sine value with phase offset (does NOT advance angle)
- * @param phase_offset_deg Phase offset in degrees (e.g., 120.0f)
- * @param sin_out Pointer to store sine value
- * @retval CORDIC_SIN_OK on success
- */
-int CORDIC_Sin_GetWithOffset(float phase_offset_deg, float *sin_out);
-
-/**
- * @brief Manually advance angle (if not using auto-advance in Get functions)
- */
-void CORDIC_Sin_Advance(void);
 
 #endif /* INC_CORDIC_SIN_H_ */

@@ -5,25 +5,13 @@
  *      Author: ivanp
  */
 #include "adc.h"
-volatile uint32_t adc_isr_cnt = 0;
-
 /* Shared between ISR and main context */
 static volatile uint8_t  s_adc_new  = 0;
 static volatile adc_curr_raw_t s_raw;
 
-static volatile uint16_t I_a = 0;
-static volatile uint16_t I_b = 0;
-static volatile uint16_t I_c = 0;
+static volatile uint16_t offsetA, offsetB, offsetC;
 
-static volatile uint16_t i_a_raw;
-static volatile uint16_t i_b_raw;
-static volatile uint16_t i_b_raw;
-
-
-static uint16_t offsetA, offsetB, offsetC;
-
-const static float conv_const = VREF / (ADC_MAX_VALUE * GAIN * R_SHUNT);
-
+const float conv_const = (VREF_MV) / (ADC_MAX_VALUE * GAIN * R_SHUNT);
 
 void ADC_Init(ADC_HandleTypeDef *hadc){
 	HAL_ADCEx_InjectedStart_IT(hadc);
@@ -52,13 +40,13 @@ float ADC_ConvRawCurrValue(uint16_t raw_v, uint8_t phase){
 	// Convert voltage reading to current with R_shunt = 0.001 Ohm
 	int16_t raw_v_offs;
 	if(phase == 1){
-		raw_v_offs = raw_v;
+		raw_v_offs = raw_v - offsetA;
 	} else if(phase == 2) {
-		raw_v_offs = raw_v;
+		raw_v_offs = raw_v - offsetB;
 	} else if (phase == 3){
-		raw_v_offs = raw_v;
+		raw_v_offs = raw_v - offsetC;
 	}
-	float conv_v = (raw_v_offs - 2048.0f)* conv_const;
+	float conv_v = raw_v_offs * conv_const;
 	return conv_v;
 }
 
@@ -73,4 +61,26 @@ uint8_t ADC1_PopCurrentsValues(adc_curr_raw_t  *out)
     *out = s_raw;
     s_adc_new = 0;
     return 1;
+}
+
+void ADC_StartCalibration(ADC_HandleTypeDef *hadc){
+	adc_curr_raw_t adc_cal_data;
+	uint32_t sumA = 0;
+	uint32_t sumB = 0;
+	uint32_t sumC = 0;
+	uint16_t c = 0;
+
+	while (c < (ADC_CAL_SIZE + 1) ){
+		if(s_adc_new == 1){
+			ADC1_PopCurrentsValues(&adc_cal_data);
+			sumA += adc_cal_data.ia_raw;
+			sumB += adc_cal_data.ib_raw;
+			sumC += adc_cal_data.ic_raw;
+			c++;
+		}
+	}
+
+	offsetA = sumA / ADC_CAL_SIZE;
+	offsetB = sumB / ADC_CAL_SIZE;
+	offsetC = sumC / ADC_CAL_SIZE;
 }

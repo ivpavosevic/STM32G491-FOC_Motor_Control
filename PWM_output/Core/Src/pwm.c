@@ -66,6 +66,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
   float sin_a, sin_b, sin_c;
   uint32_t ccr1, ccr2, ccr3;
+  static uint32_t counter = 0;
+
   uint32_t arr = __HAL_TIM_GET_AUTORELOAD(htim);
 
   const float k = 0.5f * s_modulation_index;
@@ -84,12 +86,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
     /* Set PWM compare values */
     __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_1, ccr1);
-    __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_2,
-                          ccr3); /* Note: swapped as in original */
-    __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_3, ccr2);
+    __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_2, ccr2);
+    __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_3, ccr3);
   }
 }
-
-uint16_t PWM_GetCCR1_1st(void) { return ccr1_1st; }
 
 uint16_t PWM_GetCCR1_2nd(void) { return ccr1_2nd; }

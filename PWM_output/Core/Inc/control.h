@@ -8,10 +8,18 @@
 #ifndef INC_CONTROL_H_
 #define INC_CONTROL_H_
 #include "main.h"
+
+#define TEST_SIZE 48
+
+
 void Control_Init(TIM_HandleTypeDef *htim_pwm, uint32_t pwm_channel, UART_HandleTypeDef *huart);
 
 void process_line(char *line);
 
-uint8_t readHall(void);
+uint32_t readHall(void);
+
+int32_t readAngle(void);
+
+int getCounterHallA(void);
 
 #endif /* INC_CONTROL_H_ */

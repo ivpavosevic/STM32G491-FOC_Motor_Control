@@ -4,5 +4,4 @@
 ../Core/Src/pwm.c:48:6:PWM_SetModulationIndex	3
 ../Core/Src/pwm.c:60:7:PWM_GetModulationIndex	1
 ../Core/Src/pwm.c:63:6:HAL_TIM_PeriodElapsedCallback	3
-../Core/Src/pwm.c:93:10:PWM_GetCCR1_1st	1
-../Core/Src/pwm.c:95:10:PWM_GetCCR1_2nd	1
+../Core/Src/pwm.c:94:10:PWM_GetCCR1_2nd	1
