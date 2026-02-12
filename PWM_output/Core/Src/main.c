@@ -162,27 +162,17 @@ int main(void)
   const char *msg = "UART ready\r\n";
   HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
 
-  // pwm_set_duty_percent(&htim1, TIM_CHANNEL_1, 50); /* To set FIXED PWM duty
-  // cycle */
+  // pwm_set_duty_percent(&htim1, TIM_CHANNEL_1, 50); /* To set FIXED PWM duty cycle */
 
-  // Fill LUT table (legacy - can be removed later)
+  // Fill LUT table (legacy)
   //sinLUT_Init();
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET); // for debugging purpose
 
   // Initialize CORDIC sine module
-  // PWM freq = 100MHz / (2 * 2000) = 25 kHz (center-aligned, ARR=1999)
   if (CORDIC_Sin_Init(&hcordic, 50000.0f) == CORDIC_SIN_OK) {
     // Set initial motor frequency (Hz) - adjust as needed
-    CORDIC_Sin_SetFrequency(3.0f); // 1 Hz starting frequency
-    //const char *rep = "CORDIC initialized, motor starting...\r\n";
-    //HAL_UART_Transmit(&huart2, (uint8_t *)rep, strlen(rep), HAL_MAX_DELAY);
-  //} else {
-    //const char *err = "CORDIC init failed!\r\n";
-    //HAL_UART_Transmit(&huart2, (uint8_t *)err, strlen(err), HAL_MAX_DELAY);
+    CORDIC_Sin_SetFrequency(16.0f);
   }
-
-  uint16_t adc_raw = 0;
-  uint16_t adc_last_main = 0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -201,10 +191,6 @@ int main(void)
   char buf3[60];
 
   uint8_t angle_flag = 0;
-
-  uint8_t flag_en = 1;
-  uint8_t flag_dis = 1;
-
   while (1) {
     now = HAL_GetTick();
     if ((now - last_period_ms >= 2500)) {

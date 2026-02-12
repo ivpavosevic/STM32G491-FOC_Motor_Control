@@ -1,5 +1,15 @@
 /*
+ *
+ *
+ *
  * control.c
+ *
+ *
+ * Purpose: This file contains logics for
+ * controlling the input (Ud, Uq) and
+ * proccessing of feedback loop (Id, Iq)
+ *
+ *
  *
  *  Created on: Nov 14, 2025
  *      Author: ivanp
@@ -23,10 +33,13 @@ static volatile uint8_t print_flag = 0;
 static UART_HandleTypeDef *s_huart = NULL;
 static volatile uint32_t pwm_duty_pct = 0;
 
-static int32_t array_states[2*TEST_SIZE];
+static uint32_t array_states[2*TEST_SIZE];
 
-static volatile uint32_t pwm_duty = 0; // Everything turned off in the start
+static foc_dq_t control_dq;
 
+/*
+ * Initialization for Control mechanism - setting up local variables and default values
+ */
 void Control_Init(TIM_HandleTypeDef *htim_pwm, uint32_t pwm_channel,
                   UART_HandleTypeDef *huart) {
   s_htim_pwm = htim_pwm;
@@ -37,16 +50,138 @@ void Control_Init(TIM_HandleTypeDef *htim_pwm, uint32_t pwm_channel,
   if (htim_pwm->Instance == TIM1) {
     if (pwm_channel == TIM_CHANNEL_1) {
       pwm_ch1 = pwm_channel;
-      pwm_set_duty_percent(s_htim_pwm, pwm_ch1, pwm_duty);
+      pwm_set_duty_percent(s_htim_pwm, pwm_ch1, 0);
     } else if (pwm_channel == TIM_CHANNEL_2) {
       pwm_ch2 = pwm_channel;
-      pwm_set_duty_percent(s_htim_pwm, pwm_ch2, pwm_duty);
+      pwm_set_duty_percent(s_htim_pwm, pwm_ch2, 0);
     } else if (pwm_channel == TIM_CHANNEL_3) {
       pwm_ch3 = pwm_channel;
-      pwm_set_duty_percent(s_htim_pwm, pwm_ch3, pwm_duty);
+      pwm_set_duty_percent(s_htim_pwm, pwm_ch3, 0);
     }
   }
+
+
 }
+
+/**********************
+ *
+ * Private functions
+ *
+ * *******************/
+
+/*
+ * Reading Hall directly from GPIO
+ */
+uint32_t readHall(void) {
+  uint32_t hall_A, hall_B, hall_C;
+  uint32_t hall_output;
+
+  /* HALL_A reading */
+  if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_4) == GPIO_PIN_SET) {
+    hall_A = 1;
+  } else {
+    hall_A = 0;
+  }
+
+  /* HALL_B reading */
+  if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_5) == GPIO_PIN_SET) {
+    hall_B = 1;
+  } else {
+    hall_B = 0;
+  }
+
+  /* HALL_C reading */
+  if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_2) == GPIO_PIN_SET) {
+    hall_C = 1;
+  } else {
+    hall_C = 0;
+  }
+
+  hall_output = hall_A * 100 + hall_B * 10 + hall_C;
+  return hall_output;
+}
+
+/*
+ * Reading Hall directly from GPIO
+ */
+uint32_t readAngle(void){
+	int32_t angle_deg = CORDIC_Get_Angle();
+	return (angle_deg >= 0) ? (uint32_t)angle_deg : (uint32_t)(360 + angle_deg);
+}
+
+/*
+ * Callback function for pressed 'User' button event
+ */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+  if (GPIO_Pin == GPIO_PIN_13) {
+    /* SW debounce */
+    static uint32_t last_press_ms = 0;
+    uint32_t now = HAL_GetTick();
+    char buf4[60];
+
+    /* Ako je tipka stisnuta prebrzo zaredom (<200ms), ignoriraj */
+    if ((now - last_press_ms) < 200) {
+      return;
+    }
+    last_press_ms = now;
+
+    /* Iduce linije koda sluze za testiranje da su sinusi pomaknuti u fazama*/
+    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_6);  // enable
+    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_11); // disable
+
+
+    hall_state = readHall();
+    int n4;
+    if(print_flag){
+    	for(uint8_t i = 0; i<TEST_SIZE*2; i=i+2) {
+    		n4 = snprintf(buf4, sizeof(buf4), "Hall state = %03d, angle = %d\r\n", (int)array_states[i], (int)array_states[i+1]);
+            HAL_UART_Transmit(s_huart, (uint8_t *)buf4, n4, HAL_MAX_DELAY);
+    	}
+
+    }
+
+  } else if (GPIO_Pin == GPIO_PIN_4 || GPIO_Pin == GPIO_PIN_5 || GPIO_Pin == GPIO_PIN_2){
+	  uint32_t hall_state_new = readHall();
+	  uint32_t angle_new = readAngle();
+	  if (hall_state_new != hall_state){
+		  hall_state = hall_state_new;
+
+		  if(counter_hall < TEST_SIZE){
+			  array_states[counter_hall*2] = hall_state_new;
+			  array_states[counter_hall*2 + 1] = angle_new;
+
+		  } else{
+			  print_flag = 1;
+		  }
+		  counter_hall++;
+
+
+	  }
+  }
+}
+
+
+void Control_Set3PhaseV(float *Ua, float *Ua, float *Uc) {
+  int result;
+
+  // Calculate first Inverse Park transform
+  result = calculateInvPark((int32_t)s_angle_uq31, sin_a, NULL);
+  if (result != CORDIC_SIN_OK) return result;
+
+
+}
+
+
+
+/********************************************
+ *
+ *
+ *
+ * LEGACY CODE - for later purpose
+ *
+ *
+ *
+ *******************************************/
 
 /* UART command processor - supports:
  *   pwm <0..100>  - set fixed duty cycle (disables sine generation)
@@ -78,93 +213,5 @@ void process_line(char *line) {
   HAL_UART_Transmit(s_huart, (uint8_t *)err, strlen(err), HAL_MAX_DELAY);
 }
 
-uint32_t readHall(void) {
-  uint32_t hall_A, hall_B, hall_C;
-  uint32_t hall_output;
-
-  /* HALL_A reading */
-  if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_4) == GPIO_PIN_SET) {
-    hall_A = 1;
-  } else {
-    hall_A = 0;
-  }
-
-  /* HALL_B reading */
-  if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_5) == GPIO_PIN_SET) {
-    hall_B = 1;
-  } else {
-    hall_B = 0;
-  }
-
-  /* HALL_C reading */
-  if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_2) == GPIO_PIN_SET) {
-    hall_C = 1;
-  } else {
-    hall_C = 0;
-  }
-
-  hall_output = hall_A * 100 + hall_B * 10 + hall_C;
-  return hall_output;
-}
 
 
-int32_t readAngle(void){
-	return CORDIC_Get_Angle();
-}
-
-int getCounterHallA(void){ return counter_hall; }
-
-/* Callback function for pressed 'User' button event */
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-  if (GPIO_Pin == GPIO_PIN_13) {
-    /* SW debounce */
-    static uint32_t last_press_ms = 0;
-    uint32_t now = HAL_GetTick();
-    int hallA_read = 0;
-    char buf4[60];
-    char buf5[60];
-
-    /* Ako je tipka stisnuta prebrzo zaredom (<200ms), ignoriraj */
-    if ((now - last_press_ms) < 200) {
-      return;
-    }
-    last_press_ms = now;
-
-    /* Iduce linije koda sluze za testiranje da su sinusi pomaknuti u fazama*/
-    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_6);  // enable
-    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_11); // disable
-
-
-    hallA_read = counter_hall;
-    hall_state = readHall();
-    int n4;
-    int n5;
-    if(print_flag){
-    	for(uint8_t i = 0; i<= TEST_SIZE; i = i + 2 ) {
-    		n4 = snprintf(buf4, sizeof(buf4), "Hall state = --- %03d\r\n", (int)array_states[2 * i]);
-            HAL_UART_Transmit(s_huart, (uint8_t *)buf4, n4, HAL_MAX_DELAY);
-            n5 = snprintf(buf5, sizeof(buf5), "Angle = --- %03d\r\n", (int)array_states[2*i + 1]);
-            HAL_UART_Transmit(s_huart, (uint8_t *)buf5, n5, HAL_MAX_DELAY);
-    	}
-
-    }
-
-
-  } else if (GPIO_Pin == GPIO_PIN_4 || GPIO_Pin == GPIO_PIN_5 || GPIO_Pin == GPIO_PIN_2){
-	  int32_t hall_state_new = (int32_t)readHall();
-	  int32_t angle_new = readAngle();
-	  if (hall_state_new != hall_state){
-		  hall_state = hall_state_new;
-
-		  if(counter_hall < TEST_SIZE){
-			  array_states[2*counter_hall] = hall_state_new;
-			  array_states[2*counter_hall + 1] = angle_new;
-
-		  } else{
-			  print_flag = 1;
-		  }
-
-		  counter_hall++;
-	  }
-  }
-}

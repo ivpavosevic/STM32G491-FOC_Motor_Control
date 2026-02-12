@@ -157,9 +157,6 @@ void CORDIC_Change_Constant_Angle(uint8_t angle_flag){
 
 }
 
-
-/* ============ Public API Implementation ============ */
-
 int CORDIC_Sin_Init(CORDIC_HandleTypeDef *hcordic_ptr, float pwm_freq_hz) {
   if (hcordic_ptr == NULL || pwm_freq_hz <= 0.0f) {
     return CORDIC_SIN_ERROR;
@@ -174,9 +171,6 @@ int CORDIC_Sin_Init(CORDIC_HandleTypeDef *hcordic_ptr, float pwm_freq_hz) {
   return CORDIC_SIN_OK;
 }
 
-int32_t CORDIC_Get_Angle(void){
-	return q31_angle_to_deg(s_angle_uq31);
-}
 
 void CORDIC_Sin_SetFrequency(float freq_hz) {
   s_elec_freq_hz = freq_hz;
@@ -192,9 +186,11 @@ void CORDIC_Sin_SetFrequency(float freq_hz) {
   s_delta_uq31 = (uint32_t)(delta_normalized * Q31_SCALE);
 }
 
-float CORDIC_Sin_GetFrequency(void) { return s_elec_freq_hz; }
 
-void CORDIC_Sin_ResetAngle(void) { s_angle_uq31 = 0; }
+int32_t CORDIC_Get_Angle(void){
+	return q31_angle_to_deg(s_angle_uq31);
+}
+
 
 int CORDIC_Sin_Get3Phase(float *sin_a, float *sin_b, float *sin_c) {
   int result;
@@ -211,11 +207,14 @@ int CORDIC_Sin_Get3Phase(float *sin_a, float *sin_b, float *sin_c) {
   result = cordic_calculate((int32_t)(s_angle_uq31 + PHASE_OFFSET_240_UQ31), sin_c, NULL);
   if (result != CORDIC_SIN_OK) return result;
 
-  /* Auto-advance angle (wrap is defined for uint32_t) */
-
   s_angle_uq31 += s_delta_uq31;
   //CORDIC_Change_Constant_Angle(0); // number in brackets is angle * 60
   //s_angle_uq31 = 0;
 
   return CORDIC_SIN_OK;
 }
+
+
+
+
+

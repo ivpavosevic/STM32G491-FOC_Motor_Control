@@ -1,7 +1,2 @@
-../Core/Src/pwm.c:21:6:pwm_set_duty_percent	8
-../Core/Src/pwm.c:36:6:PWM_SetMotorFrequency	1
-../Core/Src/pwm.c:42:7:PWM_GetMotorFrequency	1
-../Core/Src/pwm.c:48:6:PWM_SetModulationIndex	3
-../Core/Src/pwm.c:60:7:PWM_GetModulationIndex	1
-../Core/Src/pwm.c:63:6:HAL_TIM_PeriodElapsedCallback	3
-../Core/Src/pwm.c:94:10:PWM_GetCCR1_2nd	1
+../Core/Src/pwm.c:17:6:pwm_set_duty_percent	8
+../Core/Src/pwm.c:30:6:HAL_TIM_PeriodElapsedCallback	3

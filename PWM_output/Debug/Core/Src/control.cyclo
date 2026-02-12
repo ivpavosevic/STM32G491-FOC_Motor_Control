@@ -1,6 +1,5 @@
-../Core/Src/control.c:30:6:Control_Init	6
-../Core/Src/control.c:56:6:process_line	7
-../Core/Src/control.c:81:10:readHall	4
-../Core/Src/control.c:111:9:readAngle	1
-../Core/Src/control.c:115:5:getCounterHallA	1
-../Core/Src/control.c:118:6:HAL_GPIO_EXTI_Callback	10
+../Core/Src/control.c:45:6:Control_Init	6
+../Core/Src/control.c:77:10:readHall	4
+../Core/Src/control.c:109:10:readAngle	2
+../Core/Src/control.c:117:6:HAL_GPIO_EXTI_Callback	10
+../Core/Src/control.c:182:6:process_line	7

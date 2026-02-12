@@ -5,8 +5,6 @@
 ../Core/Src/cordic_sin.c:101:12:cordic_calculate	5
 ../Core/Src/cordic_sin.c:125:6:CORDIC_Change_Constant_Angle	8
 ../Core/Src/cordic_sin.c:163:5:CORDIC_Sin_Init	3
-../Core/Src/cordic_sin.c:177:9:CORDIC_Get_Angle	1
-../Core/Src/cordic_sin.c:181:6:CORDIC_Sin_SetFrequency	1
-../Core/Src/cordic_sin.c:195:7:CORDIC_Sin_GetFrequency	1
-../Core/Src/cordic_sin.c:197:6:CORDIC_Sin_ResetAngle	1
-../Core/Src/cordic_sin.c:199:5:CORDIC_Sin_Get3Phase	4
+../Core/Src/cordic_sin.c:178:6:CORDIC_Sin_SetFrequency	1
+../Core/Src/cordic_sin.c:193:9:CORDIC_Get_Angle	1
+../Core/Src/cordic_sin.c:198:5:CORDIC_Sin_Get3Phase	4
