@@ -1,35 +1,36 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2025 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.c
+ * @brief          : Main program body
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2025 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "pwm.h"
-#include "uart.h"
-#include "control.h"
-#include "sin_lut.h"
 #include "adc.h"
+#include "control.h"
+#include "cordic_sin.h"
+#include "pwm.h"
+#include "sin_lut.h" /* Still needed for sinLUT_Init until fully removed */
+#include "uart.h"
 
-#include <string.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -50,6 +51,10 @@
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
 
+CORDIC_HandleTypeDef hcordic;
+DMA_HandleTypeDef hdma_cordic_write;
+DMA_HandleTypeDef hdma_cordic_read;
+
 TIM_HandleTypeDef htim1;
 
 UART_HandleTypeDef huart2;
@@ -65,6 +70,7 @@ static void MX_DMA_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_CORDIC_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -107,12 +113,17 @@ int main(void)
   MX_ADC1_Init();
   MX_TIM1_Init();
   MX_USART2_UART_Init();
+  MX_CORDIC_Init();
   /* USER CODE BEGIN 2 */
 
-  /*ADC pretvorba primjer*/
+  /* Set disable and enable output pins */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);  // disable
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET); // enable
+
+  /*ADC calibration*/
   HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
 
- /* Starting all timers - CHx and CHxN channels */
+  /* Starting all timers - CHx and CHxN channels */
   /* CH1 & CH1N */
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
   HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1);
@@ -123,59 +134,100 @@ int main(void)
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
   HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_3);
 
-  // 1) Postavi početni compare za CH4 = 0 (događaj na CNT=0)
-  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_4, 0);
-  HAL_TIM_OC_Start_IT(&htim1, TIM_CHANNEL_4);
 
-  //HAL_TIM_Base_Start_IT(&htim1);
+  pwm_set_duty_percent(&htim1, TIM_CHANNEL_1, 0);
+  pwm_set_duty_percent(&htim1, TIM_CHANNEL_2, 0);
+  pwm_set_duty_percent(&htim1, TIM_CHANNEL_3, 0);
 
-  // Inicijaliziraj kontrolni sloj (postavit će početni duty na 0%)
-  Control_Init(&htim1, TIM_CHANNEL_1, &huart2, &hadc1);
-  Control_Init(&htim1, TIM_CHANNEL_2, &huart2, &hadc1);
-  Control_Init(&htim1, TIM_CHANNEL_3, &huart2, &hadc1);
+  /* Set CNT value to trigger the ADC conversion and start the OC */
+  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_4, 20);
+  HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_4);
 
-  //ADC Init
+  /* Init of ADC module */
   ADC_Init(&hadc1);
 
-  // UART RX s line bufferom
+  ADC_StartCalibration(&hadc1);
+
+  /* Enable Interrupts on TIM1*/
+  HAL_TIM_Base_Start_IT(&htim1);
+
+  /* Init of control module, all PWM D.C. set to 0 */
+  Control_Init(&htim1, TIM_CHANNEL_1, &huart2);
+  Control_Init(&htim1, TIM_CHANNEL_2, &huart2);
+  Control_Init(&htim1, TIM_CHANNEL_3, &huart2);
+
+  /* UART Init - Tx and Rx */
   UART_Init(&huart2);
 
-  const char *msg = "UART ready. Type 'start'\r\n";
-  HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+  const char *msg = "UART ready\r\n";
+  HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
 
-  //pwm_set_duty_percent(&htim1, TIM_CHANNEL_1, 50);
+  // pwm_set_duty_percent(&htim1, TIM_CHANNEL_1, 50); /* To set FIXED PWM duty cycle */
 
-  // Fill LUT table
-  if(sinLUT_Init() == SUCCESS){
-	 const char *rep = "Radi\r\n";
-	 HAL_UART_Transmit(&huart2, (uint8_t*)rep, strlen(rep), HAL_MAX_DELAY);
+  // Fill LUT table (legacy)
+  //sinLUT_Init();
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET); // for debugging purpose
+
+  // Initialize CORDIC sine module
+  if (CORDIC_Sin_Init(&hcordic, 50000.0f) == CORDIC_SIN_OK) {
+    // Set initial motor frequency (Hz) - adjust as needed
+    CORDIC_Sin_SetFrequency(16.0f);
   }
-
-
-
-
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET);
-
-  uint16_t adc_raw = 0;
-  uint16_t adc_last_main = 0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-	if (UART_IsLineReady())
-	{
-		char line[RX_LINE_MAX];
-		UART_GetLine(line, RX_LINE_MAX);
-		process_line(line);
-	}
+  uint32_t last_period_ms = 0;
+  uint32_t now;
 
-    if (ADC1_TryPopNewSample(&adc_raw))
-    {
-        adc_last_main = adc_raw;  // gledaj u debuggeru
+  uint32_t hall_read;
 
+  adc_curr_raw_t reading;
+  reading.ia_raw = 0;
+  reading.ib_raw = 0;
+  reading.ic_raw = 0;
+  char buf1[60];
+  char buf2[60];
+  char buf3[60];
+
+  uint8_t angle_flag = 0;
+  while (1) {
+    now = HAL_GetTick();
+    if ((now - last_period_ms >= 2500)) {
+//      ADC1_PopCurrentsValues(&reading);
+//      uint16_t ia = reading.ia_raw;
+//      uint16_t ib = reading.ib_raw;
+//      uint16_t ic = reading.ic_raw;
+////
+//      float Ia = ADC_ConvRawCurrValue(ia, 1);
+//      float Ib = ADC_ConvRawCurrValue(ib, 2);
+//      float Ic = ADC_ConvRawCurrValue(ic, 3);
+//
+//      float I_sum = Ia + Ib + Ic;
+
+      hall_read = readHall();
+//      if(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6) == GPIO_PIN_SET || HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_11) == GPIO_PIN_RESET ){
+//          CORDIC_Change_Constant_Angle(angle_flag);
+//          angle_flag++;
+//          if(angle_flag == 6){ angle_flag = 0;}
+//      }
+
+
+//
+//      int n1 = snprintf(buf1, sizeof(buf1), "Angle = %d\r\n", (int) (angle_flag * 60));
+//      HAL_UART_Transmit(&huart2, (uint8_t *)buf1, n1, HAL_MAX_DELAY);
+      int n2 = snprintf(buf2, sizeof(buf2), "Hall read = %03d\r\n", (int)(hall_read));
+      HAL_UART_Transmit(&huart2, (uint8_t *)buf2, n2, HAL_MAX_DELAY);
+
+      last_period_ms = now;
     }
+
+    if (UART_IsLineReady()) {
+      char line[RX_LINE_MAX];
+      UART_GetLine(line, RX_LINE_MAX);
+      process_line(line);
+    }
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -255,7 +307,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.GainCompensation = 0;
-  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
+  hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   hadc1.Init.LowPowerAutoWait = DISABLE;
   hadc1.Init.ContinuousConvMode = DISABLE;
@@ -281,17 +333,45 @@ static void MX_ADC1_Init(void)
   */
   sConfigInjected.InjectedChannel = ADC_CHANNEL_1;
   sConfigInjected.InjectedRank = ADC_INJECTED_RANK_1;
-  sConfigInjected.InjectedSamplingTime = ADC_SAMPLETIME_640CYCLES_5;
+  sConfigInjected.InjectedSamplingTime = ADC_SAMPLETIME_24CYCLES_5;
   sConfigInjected.InjectedSingleDiff = ADC_SINGLE_ENDED;
   sConfigInjected.InjectedOffsetNumber = ADC_OFFSET_NONE;
   sConfigInjected.InjectedOffset = 0;
-  sConfigInjected.InjectedNbrOfConversion = 1;
+  sConfigInjected.InjectedNbrOfConversion = 4;
   sConfigInjected.InjectedDiscontinuousConvMode = DISABLE;
   sConfigInjected.AutoInjectedConv = DISABLE;
   sConfigInjected.QueueInjectedContext = DISABLE;
-  sConfigInjected.ExternalTrigInjecConv = ADC_INJECTED_SOFTWARE_START;
-  sConfigInjected.ExternalTrigInjecConvEdge = ADC_EXTERNALTRIGINJECCONV_EDGE_NONE;
+  sConfigInjected.ExternalTrigInjecConv = ADC_EXTERNALTRIGINJEC_T1_CC4;
+  sConfigInjected.ExternalTrigInjecConvEdge = ADC_EXTERNALTRIGINJECCONV_EDGE_RISING;
   sConfigInjected.InjecOversamplingMode = DISABLE;
+  if (HAL_ADCEx_InjectedConfigChannel(&hadc1, &sConfigInjected) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Injected Channel
+  */
+  sConfigInjected.InjectedChannel = ADC_CHANNEL_6;
+  sConfigInjected.InjectedRank = ADC_INJECTED_RANK_2;
+  if (HAL_ADCEx_InjectedConfigChannel(&hadc1, &sConfigInjected) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Injected Channel
+  */
+  sConfigInjected.InjectedChannel = ADC_CHANNEL_7;
+  sConfigInjected.InjectedRank = ADC_INJECTED_RANK_3;
+  if (HAL_ADCEx_InjectedConfigChannel(&hadc1, &sConfigInjected) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Injected Channel
+  */
+  sConfigInjected.InjectedChannel = ADC_CHANNEL_5;
+  sConfigInjected.InjectedRank = ADC_INJECTED_RANK_4;
+  sConfigInjected.InjectedSamplingTime = ADC_SAMPLETIME_2CYCLES_5;
   if (HAL_ADCEx_InjectedConfigChannel(&hadc1, &sConfigInjected) != HAL_OK)
   {
     Error_Handler();
@@ -299,6 +379,44 @@ static void MX_ADC1_Init(void)
   /* USER CODE BEGIN ADC1_Init 2 */
 
   /* USER CODE END ADC1_Init 2 */
+
+}
+
+/**
+  * @brief CORDIC Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_CORDIC_Init(void)
+{
+
+  /* USER CODE BEGIN CORDIC_Init 0 */
+
+  /* USER CODE END CORDIC_Init 0 */
+
+  /* USER CODE BEGIN CORDIC_Init 1 */
+  /* Configure CORDIC for sine calculation */
+  CORDIC_ConfigTypeDef config = {0};
+  config.Function = CORDIC_FUNCTION_SINE;
+  config.Scale = CORDIC_SCALE_0;
+  config.InSize = CORDIC_INSIZE_32BITS;
+  config.OutSize = CORDIC_OUTSIZE_32BITS;
+  config.NbWrite = CORDIC_NBWRITE_1;
+  config.NbRead = CORDIC_NBREAD_1;
+  config.Precision = CORDIC_PRECISION_6CYCLES; /* 6 cycles = good precision */
+
+
+  /* USER CODE END CORDIC_Init 1 */
+  hcordic.Instance = CORDIC;
+  if (HAL_CORDIC_Init(&hcordic) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN CORDIC_Init 2 */
+  if (HAL_CORDIC_Configure(&hcordic, &config) != HAL_OK) {
+	  Error_Handler();
+  }
+  /* USER CODE END CORDIC_Init 2 */
 
 }
 
@@ -353,7 +471,7 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.OCMode = TIM_OCMODE_PWM2;
   sConfigOC.Pulse = 0;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
@@ -372,7 +490,7 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_ACTIVE;
+  sConfigOC.OCMode = TIM_OCMODE_TOGGLE;
   if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
   {
     Error_Handler();
@@ -463,6 +581,12 @@ static void MX_DMA_Init(void)
   /* DMA1_Channel1_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+  /* DMA1_Channel2_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel2_IRQn);
+  /* DMA1_Channel3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel3_IRQn);
 
 }
 
@@ -505,21 +629,15 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pins : HALL_A_Pin HALL_B_Pin */
   GPIO_InitStruct.Pin = HALL_A_Pin|HALL_B_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pin : HALL_C_Pin */
   GPIO_InitStruct.Pin = HALL_C_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(HALL_C_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : PB10 */
-  GPIO_InitStruct.Pin = GPIO_PIN_10;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pin : Test_pin_Pin */
   GPIO_InitStruct.Pin = Test_pin_Pin;
@@ -529,6 +647,15 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(Test_pin_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI2_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI4_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI4_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
@@ -550,8 +677,7 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
-  while (1)
-  {
+  while (1) {
   }
   /* USER CODE END Error_Handler_Debug */
 }
@@ -566,8 +692,9 @@ void Error_Handler(void)
 void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
-  /* User can add his own implementation to report the file name and line number,
-     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+  /* User can add his own implementation to report the file name and line
+     number, ex: printf("Wrong parameters value: file %s on line %d\r\n", file,
+     line) */
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */

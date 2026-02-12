@@ -1,0 +1,4 @@
+../Core/Src/motor_control.c:11:6:calculateInvClarke	40	static
+../Core/Src/motor_control.c:18:6:calculateClarke	40	static
+../Core/Src/motor_control.c:24:6:calculatePark	32	static
+../Core/Src/motor_control.c:32:6:calculateInvPark	32	static

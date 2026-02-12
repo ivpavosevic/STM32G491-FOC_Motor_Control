@@ -5,67 +5,82 @@
  *      Author: ivanp
  */
 #include "adc.h"
-
-static volatile uint8_t adc_busy = 0;
-static ADC_HandleTypeDef *s_hadc;
-
 /* Shared between ISR and main context */
-static volatile uint8_t  s_adc_busy = 0;
 static volatile uint8_t  s_adc_new  = 0;
-static volatile uint16_t s_adc_last = 0;
+static volatile adc_curr_raw_t s_raw;
+
+static volatile uint16_t offsetA, offsetB, offsetC;
+
+const float conv_const = (VREF_MV) / (ADC_MAX_VALUE * GAIN * R_SHUNT);
 
 void ADC_Init(ADC_HandleTypeDef *hadc){
-	s_hadc = hadc;
+	HAL_ADCEx_InjectedStart_IT(hadc);
 }
 
 void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
     if (hadc->Instance != ADC1)
         return;
+    //HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8); // for debugging purposes
+    /* Current sensing - pin PA0 */
+    s_raw.ia_raw = (uint16_t)HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_1);
 
-    /* Read injected rank 1 result */
-    s_adc_last = (uint16_t)HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_1);
+    /* Current sensing - pin PC0 */
+    s_raw.ib_raw = (uint16_t)HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_2);
+
+    /* Current sensing - pin PC1 */
+    s_raw.ic_raw = (uint16_t)HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_3);
+    //HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8); // for debugging purposes
 
     s_adc_new  = 1;
-    s_adc_busy = 0;
-}
-
-
-void ADC1_Injected_StartSoft(void){
-	//Trigger ADC conversion
-	if(s_adc_busy) return;
-
-	s_adc_busy = 1;
-
-    /* Start ONE injected conversion with interrupt on completion (JEOC) */
-    if (HAL_ADCEx_InjectedStart_IT(s_hadc) != HAL_OK)
-    {
-        /* If start failed, release busy to avoid deadlock */
-        s_adc_busy = 0;
-    }
 
 }
 
-uint16_t ADC1_GetLastSample(void)
+float ADC_ConvRawCurrValue(uint16_t raw_v, uint8_t phase){
+	// Convert voltage reading to current with R_shunt = 0.001 Ohm
+	int16_t raw_v_offs;
+	if(phase == 1){
+		raw_v_offs = raw_v - offsetA;
+	} else if(phase == 2) {
+		raw_v_offs = raw_v - offsetB;
+	} else if (phase == 3){
+		raw_v_offs = raw_v - offsetC;
+	}
+	float conv_v = raw_v_offs * conv_const;
+	return conv_v;
+}
+
+
+
+uint8_t ADC1_PopCurrentsValues(adc_curr_raw_t  *out)
 {
-    return s_adc_last;
-}
+    if (!out) return 0;
 
-uint8_t ADC1_TryPopNewSample(uint16_t *out)
-{
-    if (!out)
-        return 0;
+    if (!s_adc_new) return 0;
 
-    if (!s_adc_new)
-        return 0;
-
-    /* Read then clear the flag */
-    *out = s_adc_last;
+    *out = s_raw;
     s_adc_new = 0;
     return 1;
 }
 
-uint8_t ADC1_IsBusy(void)
-{
-    return s_adc_busy;
+void ADC_StartCalibration(ADC_HandleTypeDef *hadc){
+	adc_curr_raw_t adc_cal_data;
+	uint32_t sumA = 0;
+	uint32_t sumB = 0;
+	uint32_t sumC = 0;
+	uint16_t c = 0;
+
+	while (c < (ADC_CAL_SIZE + 1) ){
+		if(s_adc_new == 1){
+			ADC1_PopCurrentsValues(&adc_cal_data);
+			sumA += adc_cal_data.ia_raw;
+			sumB += adc_cal_data.ib_raw;
+			sumC += adc_cal_data.ic_raw;
+			c++;
+		}
+	}
+
+	offsetA = sumA / ADC_CAL_SIZE;
+	offsetB = sumB / ADC_CAL_SIZE;
+	offsetC = sumC / ADC_CAL_SIZE;
 }

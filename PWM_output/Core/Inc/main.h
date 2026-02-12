@@ -71,12 +71,15 @@ void Error_Handler(void);
 #define Output_Enable_GPIO_Port GPIOA
 #define HALL_A_Pin GPIO_PIN_4
 #define HALL_A_GPIO_Port GPIOC
+#define HALL_A_EXTI_IRQn EXTI4_IRQn
 #define HALL_B_Pin GPIO_PIN_5
 #define HALL_B_GPIO_Port GPIOC
+#define HALL_B_EXTI_IRQn EXTI9_5_IRQn
 #define L3_Pin GPIO_PIN_1
 #define L3_GPIO_Port GPIOB
 #define HALL_C_Pin GPIO_PIN_2
 #define HALL_C_GPIO_Port GPIOB
+#define HALL_C_EXTI_IRQn EXTI2_IRQn
 #define L1_Pin GPIO_PIN_13
 #define L1_GPIO_Port GPIOB
 #define TEMP_Pin GPIO_PIN_14

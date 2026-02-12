@@ -1,0 +1,10 @@
+../Core/Src/cordic_sin.c:69:23:radians_to_q31	16	static
+../Core/Src/cordic_sin.c:75:21:q31_to_float	16	static
+../Core/Src/cordic_sin.c:79:21:degree_to_radians	16	static
+../Core/Src/cordic_sin.c:87:23:q31_angle_to_deg	48	static
+../Core/Src/cordic_sin.c:101:12:cordic_calculate	48	static
+../Core/Src/cordic_sin.c:125:6:CORDIC_Change_Constant_Angle	24	static
+../Core/Src/cordic_sin.c:163:5:CORDIC_Sin_Init	16	static
+../Core/Src/cordic_sin.c:178:6:CORDIC_Sin_SetFrequency	24	static
+../Core/Src/cordic_sin.c:193:9:CORDIC_Get_Angle	8	static
+../Core/Src/cordic_sin.c:198:5:CORDIC_Sin_Get3Phase	32	static

@@ -7,13 +7,17 @@
 
 #ifndef INC_PWM_H_
 #define INC_PWM_H_
+
 #include "main.h"
 
-#define LUT_OFFSET_120  (SIN_LUT_SIZE / 3)
-#define LUT_OFFSET_240  ((2 * SIN_LUT_SIZE) / 3)
-
-void pwm_set_duty_percent(TIM_HandleTypeDef *htim, uint32_t channel, uint32_t pct);
-void ADC_Init(ADC_HandleTypeDef *hadc);
+/**
+ * @brief Set constant PWM duty cycle (for testing)
+ * @param htim Timer handle
+ * @param channel Timer channel
+ * @param pct Duty cycle percentage (0-100)
+ */
+void pwm_set_duty_percent(TIM_HandleTypeDef *htim, uint32_t channel,
+                          uint32_t pct);
 
 
 #endif /* INC_PWM_H_ */

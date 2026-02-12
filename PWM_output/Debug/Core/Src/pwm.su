@@ -1,3 +1,2 @@
-../Core/Src/pwm.c:11:6:pwm_set_duty_percent	32	static
-../Core/Src/pwm.c:20:6:HAL_TIM_PeriodElapsedCallback	16	static
-../Core/Src/pwm.c:53:6:HAL_TIM_OC_DelayElapsedCallback	32	static
+../Core/Src/pwm.c:17:6:pwm_set_duty_percent	32	static
+../Core/Src/pwm.c:30:6:HAL_TIM_PeriodElapsedCallback	64	static
