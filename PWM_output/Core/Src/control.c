@@ -22,6 +22,7 @@
 #include "control.h"
 
 static TIM_HandleTypeDef *s_htim_pwm = NULL;
+
 static uint32_t pwm_ch1 = 0;
 static uint32_t pwm_ch2 = 0;
 static uint32_t pwm_ch3 = 0;
