@@ -40,11 +40,11 @@ float ADC_ConvRawCurrValue(uint16_t raw_v, uint8_t phase){
 	// Convert voltage reading to current with R_shunt = 0.001 Ohm
 	int16_t raw_v_offs;
 	if(phase == 1){
-		raw_v_offs = raw_v - offsetA;
+		raw_v_offs = raw_v - 2048;
 	} else if(phase == 2) {
-		raw_v_offs = raw_v - offsetB;
+		raw_v_offs = raw_v - 2048;
 	} else if (phase == 3){
-		raw_v_offs = raw_v - offsetC;
+		raw_v_offs = raw_v - 2048;
 	}
 	float conv_v = raw_v_offs * conv_const;
 	return conv_v;
@@ -52,7 +52,7 @@ float ADC_ConvRawCurrValue(uint16_t raw_v, uint8_t phase){
 
 
 
-uint8_t ADC1_PopCurrentsValues(adc_curr_raw_t  *out)
+uint8_t ADC1_PopCurrentsValues(adc_curr_raw_t  *out, foc_i_dq_t *out_dq)
 {
     if (!out) return 0;
 
@@ -64,23 +64,23 @@ uint8_t ADC1_PopCurrentsValues(adc_curr_raw_t  *out)
 }
 
 void ADC_StartCalibration(ADC_HandleTypeDef *hadc){
-	adc_curr_raw_t adc_cal_data;
-	uint32_t sumA = 0;
-	uint32_t sumB = 0;
-	uint32_t sumC = 0;
-	uint16_t c = 0;
-
-	while (c < (ADC_CAL_SIZE + 1) ){
-		if(s_adc_new == 1){
-			ADC1_PopCurrentsValues(&adc_cal_data);
-			sumA += adc_cal_data.ia_raw;
-			sumB += adc_cal_data.ib_raw;
-			sumC += adc_cal_data.ic_raw;
-			c++;
-		}
-	}
-
-	offsetA = sumA / ADC_CAL_SIZE;
-	offsetB = sumB / ADC_CAL_SIZE;
-	offsetC = sumC / ADC_CAL_SIZE;
+//	adc_curr_raw_t adc_cal_data;
+//	uint32_t sumA = 0;
+//	uint32_t sumB = 0;
+//	uint32_t sumC = 0;
+//	uint16_t c = 0;
+//
+//	while (c < (ADC_CAL_SIZE + 1) ){
+//		if(s_adc_new == 1){
+//			ADC1_PopCurrentsValues(&adc_cal_data);
+//			sumA += adc_cal_data.ia_raw;
+//			sumB += adc_cal_data.ib_raw;
+//			sumC += adc_cal_data.ic_raw;
+//			c++;
+//		}
+//	}
+//
+//	offsetA = sumA / ADC_CAL_SIZE;
+//	offsetB = sumB / ADC_CAL_SIZE;
+//	offsetC = sumC / ADC_CAL_SIZE;
 }

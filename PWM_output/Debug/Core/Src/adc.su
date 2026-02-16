@@ -2,4 +2,4 @@
 ../Core/Src/adc.c:20:6:HAL_ADCEx_InjectedConvCpltCallback	16	static
 ../Core/Src/adc.c:39:7:ADC_ConvRawCurrValue	24	static
 ../Core/Src/adc.c:55:9:ADC1_PopCurrentsValues	16	static
-../Core/Src/adc.c:66:6:ADC_StartCalibration	40	static
+../Core/Src/adc.c:66:6:ADC_StartCalibration	16	static

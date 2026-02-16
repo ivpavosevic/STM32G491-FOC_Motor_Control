@@ -6,6 +6,7 @@
  */
 #include "pwm.h"
 #include "cordic_sin.h"
+#include "control.h"
 
 /* ============ Private variables ============ */
 /* Modulation index (0.0 to 1.0) - controls amplitude */
@@ -38,11 +39,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
   const float k = 0.5f * s_modulation_index;
 
   //function that fulfills Ua, Ub, Uc
+  Control_Set3PhaseV(&Ua, &Ub, &Uc);
 
   /* Convert sine (-1 to 1) to duty cycle (0 to 1) */
-  float duty_a = 0.5f + k * sin_a;
-  float duty_b = 0.5f + k * sin_b;
-  float duty_c = 0.5f + k * sin_c;
+  float duty_a = 0.5f + k * Ua;
+  float duty_b = 0.5f + k * Ub;
+  float duty_c = 0.5f + k * Uc;
 
   /* Calculate CCR values */
   ccr1 = (uint32_t)(duty_a * (float)arr);

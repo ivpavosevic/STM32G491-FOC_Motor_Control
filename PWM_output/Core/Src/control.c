@@ -31,11 +31,11 @@ static volatile uint32_t hall_state = 0;
 static volatile uint8_t print_flag = 0;
 
 static UART_HandleTypeDef *s_huart = NULL;
-static volatile uint32_t pwm_duty_pct = 0;
+static volatile uint32_t pwm_duty = 0;
 
 static uint32_t array_states[2*TEST_SIZE];
 
-static foc_dq_t control_dq;
+static foc_u_alfabeta_t control_alfabeta;
 
 /*
  * Initialization for Control mechanism - setting up local variables and default values
@@ -110,6 +110,24 @@ uint32_t readAngle(void){
 }
 
 /*
+ *
+ * Updating voltage levels on three-phase gates
+ *
+ * */
+void Control_Set3PhaseV(float *Ua, float *Ub, float *Uc) {
+  float U_alfa, U_beta;
+  float Uq = 1;
+  float Ud = 0;
+
+  // Calculate first Inverse Park transform
+  calculateInvPark(&U_alfa, &U_beta, Uq, Ud);
+
+  //Calculate Inverse Clarke
+  calculateInvClarke(Ua, Ub, Uc, U_alfa, U_beta);
+
+}
+
+/*
  * Callback function for pressed 'User' button event
  */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
@@ -161,15 +179,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 }
 
 
-void Control_Set3PhaseV(float *Ua, float *Ua, float *Uc) {
-  int result;
 
-  // Calculate first Inverse Park transform
-  result = calculateInvPark((int32_t)s_angle_uq31, sin_a, NULL);
-  if (result != CORDIC_SIN_OK) return result;
-
-
-}
 
 
 
