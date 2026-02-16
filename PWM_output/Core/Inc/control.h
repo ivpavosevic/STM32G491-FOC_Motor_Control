@@ -11,10 +11,7 @@
 
 #define TEST_SIZE 48
 
-typedef struct {
-    float id;
-    float iq;
-} foc_dq_t;
+
 
 void Control_Init(TIM_HandleTypeDef *htim_pwm, uint32_t pwm_channel, UART_HandleTypeDef *huart);
 
@@ -23,5 +20,6 @@ void process_line(char *line);
 uint32_t readHall(void);
 
 uint32_t readAngle(void);
+
 
 #endif /* INC_CONTROL_H_ */

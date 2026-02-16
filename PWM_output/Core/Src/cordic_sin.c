@@ -15,6 +15,7 @@
 #include "cordic_sin.h"
 #include <stddef.h>
 #include <stdint.h>
+#include <math.h>
 
 /* ============ Private defines ============ */
 
@@ -62,6 +63,21 @@ static volatile uint32_t counter = 0;
 
 /* ============ Private functions ============ */
 
+int CORDIC_Sin_Init(CORDIC_HandleTypeDef *hcordic_ptr, float pwm_freq_hz) {
+  if (hcordic_ptr == NULL || pwm_freq_hz <= 0.0f) {
+    return CORDIC_SIN_ERROR;
+  }
+
+  s_hcordic = hcordic_ptr;
+  s_pwm_freq_hz = pwm_freq_hz;
+  s_angle_uq31 = 0;
+  s_delta_uq31 = 0;
+  s_elec_freq_hz = 0.0f;
+
+  return CORDIC_SIN_OK;
+}
+
+
 /**
  * @brief Convert radians to Q31 format
  *        CORDIC Q31: angle/PI * 2^31
@@ -99,9 +115,6 @@ static inline int32_t q31_angle_to_deg(int32_t angle_q31)
  * @retval CORDIC_SIN_OK on success
  */
 static int cordic_calculate(int32_t angle_q31, float *sin_out, float *cos_out) {
-  if (s_hcordic == NULL) {
-    return CORDIC_SIN_ERROR;
-  }
 
   int32_t input = angle_q31;
   int32_t output[2]; /* [0] = sine, [1] = cosine */
@@ -157,20 +170,6 @@ void CORDIC_Change_Constant_Angle(uint8_t angle_flag){
 
 }
 
-int CORDIC_Sin_Init(CORDIC_HandleTypeDef *hcordic_ptr, float pwm_freq_hz) {
-  if (hcordic_ptr == NULL || pwm_freq_hz <= 0.0f) {
-    return CORDIC_SIN_ERROR;
-  }
-
-  s_hcordic = hcordic_ptr;
-  s_pwm_freq_hz = pwm_freq_hz;
-  s_angle_uq31 = 0;
-  s_delta_uq31 = 0;
-  s_elec_freq_hz = 0.0f;
-
-  return CORDIC_SIN_OK;
-}
-
 
 void CORDIC_Sin_SetFrequency(float freq_hz) {
   s_elec_freq_hz = freq_hz;
@@ -185,6 +184,48 @@ void CORDIC_Sin_SetFrequency(float freq_hz) {
   float delta_normalized = 2.0f * freq_hz / s_pwm_freq_hz;
   s_delta_uq31 = (uint32_t)(delta_normalized * Q31_SCALE);
 }
+
+/*
+ *
+ * Clarke and Park transformations (including inverse)
+ *
+ */
+void calculateInvClarke(float *Ua, float *Ub, float *Uc, float Ualpha, float Ubeta){
+	*Ua = Ualpha;
+	*Ub = 0.5f*(-Ualpha + sqrtf(3)*Ubeta);
+	*Uc = 0.5f*(-Ualpha - sqrtf(3)*Ubeta);
+	return;
+}
+
+void calculateClarke(float Ia, float Ib, float Ic, float *Ialpha, float *Ibeta){
+	*Ialpha = (1/3.0f)*(2*Ia - Ib - Ic);
+	*Ibeta = (1/3.0f)*(sqrt(3)*Ib - sqrt(3)*Ic);
+	return;
+}
+
+void calculatePark(float Ialpha, float Ibeta, float *Iq, float *Id){
+	float sin_t, cos_t;
+
+	int result = cordic_calculate((int32_t)s_angle_uq31, &sin_t, &cos_t);
+
+	*Id =  Ialpha * cos_t + Ibeta * sin_t;
+	*Iq = -Ialpha * sin_t + Ibeta * cos_t;
+	return;
+}
+
+void calculateInvPark(float *Ualpha, float *Ubeta, float Uq, float Ud){
+	float sin_t = 0, cos_t = 0;
+
+	int result = cordic_calculate((int32_t)s_angle_uq31, &sin_t, &cos_t);
+
+	*Ualpha = Ud * cos_t - Uq * sin_t;
+	*Ubeta  = Ud * sin_t + Uq * cos_t;
+
+	//s_angle_uq31 = 0;
+	s_angle_uq31 += s_delta_uq31;
+	return;
+}
+
 
 
 int32_t CORDIC_Get_Angle(void){

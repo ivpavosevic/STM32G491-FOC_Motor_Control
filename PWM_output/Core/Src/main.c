@@ -25,7 +25,6 @@
 #include "control.h"
 #include "cordic_sin.h"
 #include "pwm.h"
-#include "sin_lut.h" /* Still needed for sinLUT_Init until fully removed */
 #include "uart.h"
 
 #include <stdio.h>
@@ -114,6 +113,12 @@ int main(void)
   MX_TIM1_Init();
   MX_USART2_UART_Init();
   MX_CORDIC_Init();
+
+  // Initialize CORDIC sine module
+  if (CORDIC_Sin_Init(&hcordic, 50000.0f) == CORDIC_SIN_OK) {
+    // Set initial motor frequency (Hz) - adjust as needed
+    CORDIC_Sin_SetFrequency(2.0f);
+  }
   /* USER CODE BEGIN 2 */
 
   /* Set disable and enable output pins */
@@ -168,11 +173,7 @@ int main(void)
   //sinLUT_Init();
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET); // for debugging purpose
 
-  // Initialize CORDIC sine module
-  if (CORDIC_Sin_Init(&hcordic, 50000.0f) == CORDIC_SIN_OK) {
-    // Set initial motor frequency (Hz) - adjust as needed
-    CORDIC_Sin_SetFrequency(16.0f);
-  }
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -190,20 +191,26 @@ int main(void)
   char buf2[60];
   char buf3[60];
 
+  float I_alfa;
+  float I_beta;
+
   uint8_t angle_flag = 0;
   while (1) {
     now = HAL_GetTick();
-    if ((now - last_period_ms >= 2500)) {
-//      ADC1_PopCurrentsValues(&reading);
-//      uint16_t ia = reading.ia_raw;
-//      uint16_t ib = reading.ib_raw;
-//      uint16_t ic = reading.ic_raw;
+    if ((now - last_period_ms >= 1000)) {
+      ADC1_PopCurrentsValues(&reading);
+      uint16_t ia = reading.ia_raw;
+      uint16_t ib = reading.ib_raw;
+      uint16_t ic = reading.ic_raw;
 ////
-//      float Ia = ADC_ConvRawCurrValue(ia, 1);
-//      float Ib = ADC_ConvRawCurrValue(ib, 2);
-//      float Ic = ADC_ConvRawCurrValue(ic, 3);
-//
-//      float I_sum = Ia + Ib + Ic;
+      float Ia = ADC_ConvRawCurrValue(ia, 1);
+      float Ib = ADC_ConvRawCurrValue(ib, 2);
+      float Ic = ADC_ConvRawCurrValue(ic, 3);
+
+      calculateClarke(Ia, Ib, Ic, &I_alfa, &I_beta);
+      calculatePark();
+
+
 
       hall_read = readHall();
 //      if(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6) == GPIO_PIN_SET || HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_11) == GPIO_PIN_RESET ){
@@ -214,9 +221,9 @@ int main(void)
 
 
 //
-//      int n1 = snprintf(buf1, sizeof(buf1), "Angle = %d\r\n", (int) (angle_flag * 60));
-//      HAL_UART_Transmit(&huart2, (uint8_t *)buf1, n1, HAL_MAX_DELAY);
-      int n2 = snprintf(buf2, sizeof(buf2), "Hall read = %03d\r\n", (int)(hall_read));
+      int n1 = snprintf(buf1, sizeof(buf1), "Current A = %d A\r\n", (int) (Ia));
+      HAL_UART_Transmit(&huart2, (uint8_t *)buf1, n1, HAL_MAX_DELAY);
+      int n2 = snprintf(buf2, sizeof(buf2), "Current B = %d A\r\n", (int) (Ib)));
       HAL_UART_Transmit(&huart2, (uint8_t *)buf2, n2, HAL_MAX_DELAY);
 
       last_period_ms = now;
@@ -402,7 +409,7 @@ static void MX_CORDIC_Init(void)
   config.InSize = CORDIC_INSIZE_32BITS;
   config.OutSize = CORDIC_OUTSIZE_32BITS;
   config.NbWrite = CORDIC_NBWRITE_1;
-  config.NbRead = CORDIC_NBREAD_1;
+  config.NbRead = CORDIC_NBREAD_2;
   config.Precision = CORDIC_PRECISION_6CYCLES; /* 6 cycles = good precision */
 
 
