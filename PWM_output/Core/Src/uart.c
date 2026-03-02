@@ -1,6 +1,8 @@
 /*
  * uart.c
  *
+ * Purpose: UART communication
+ *
  *  Created on: Nov 14, 2025
  *      Author: ivanp
  */

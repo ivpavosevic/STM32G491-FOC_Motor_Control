@@ -1,0 +1,8 @@
+../Core/Src/kalman.c:25:21:wrap_0_2pi	16	static
+../Core/Src/kalman.c:39:12:hall_to_sector	16	static
+../Core/Src/kalman.c:51:6:HallKF_Init	16	static
+../Core/Src/kalman.c:76:6:HallKF_Tick40us	16	static
+../Core/Src/kalman.c:81:6:HallKF_OnHallEdgeGPIO	16	static
+../Core/Src/kalman.c:85:6:HallKF_Predict	32	static
+../Core/Src/kalman.c:100:13:update_theta	16	static
+../Core/Src/kalman.c:105:13:update_omega	24	static

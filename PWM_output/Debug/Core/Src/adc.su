@@ -1,5 +1,10 @@
-../Core/Src/adc.c:16:6:ADC_Init	16	static
-../Core/Src/adc.c:20:6:HAL_ADCEx_InjectedConvCpltCallback	16	static
-../Core/Src/adc.c:39:7:ADC_ConvRawCurrValue	24	static
-../Core/Src/adc.c:55:9:ADC1_PopCurrentsValues	16	static
-../Core/Src/adc.c:66:6:ADC_StartCalibration	16	static
+../Core/Src/adc.c:30:6:ADC_Init	16	static
+../Core/Src/adc.c:35:6:DWT_Init	4	static
+../Core/Src/adc.c:43:7:ADC_ConvRawCurrValue	24	static
+../Core/Src/adc.c:57:9:ADC1_PopCurrentsValues	16	static
+../Core/Src/adc.c:68:6:ADC_StartCalibration	40	static
+../Core/Src/adc.c:93:6:HAL_ADCEx_InjectedConvCpltCallback	16	static
+../Core/Src/adc.c:131:7:get_Id	4	static
+../Core/Src/adc.c:135:7:get_Iq	4	static
+../Core/Src/adc.c:139:7:get_Ialfa	4	static
+../Core/Src/adc.c:143:7:get_Ibeta	4	static

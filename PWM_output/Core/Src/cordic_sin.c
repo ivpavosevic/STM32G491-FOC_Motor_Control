@@ -1,16 +1,12 @@
 /*
  * cordic_sin.c
  *
- * CORDIC-based sine/cosine calculation for motor control
+ * Purpose: Init of CORDIC, generation of sin/cos/atan2 values
  *
  *  Created on: Jan 29, 2026
- *
- *  FIX (Jan 30, 2026):
- *  - Use uint32_t for the phase accumulator and delta to avoid undefined behavior
- *    from signed int32_t overflow when advancing/wrapping angles.
- *  - Keep phase offsets as uint32_t and do additions in unsigned space so 3-phase
- *    offsets (+120°, +240°) remain correct across wrap boundaries.
+ *      Author: ivanp
  */
+
 
 #include "cordic_sin.h"
 #include <stddef.h>
@@ -21,6 +17,10 @@
 
 /* Q31 format: full scale = 2^31 */
 #define Q31_SCALE 2147483648.0f
+
+
+#define SQRT3 1.73205080757f
+
 
 /* Pi constant */
 #ifndef M_PI
@@ -192,14 +192,14 @@ void CORDIC_Sin_SetFrequency(float freq_hz) {
  */
 void calculateInvClarke(float *Ua, float *Ub, float *Uc, float Ualpha, float Ubeta){
 	*Ua = Ualpha;
-	*Ub = 0.5f*(-Ualpha + sqrtf(3)*Ubeta);
-	*Uc = 0.5f*(-Ualpha - sqrtf(3)*Ubeta);
+	*Ub = 0.5f*(-Ualpha + SQRT3*Ubeta);
+	*Uc = 0.5f*(-Ualpha - SQRT3*Ubeta);
 	return;
 }
 
 void calculateClarke(float Ia, float Ib, float Ic, float *Ialpha, float *Ibeta){
 	*Ialpha = (1/3.0f)*(2*Ia - Ib - Ic);
-	*Ibeta = (1/3.0f)*(sqrt(3)*Ib - sqrt(3)*Ic);
+	*Ibeta = (1/3.0f)*(SQRT3*Ib - SQRT3*Ic);
 	return;
 }
 

@@ -1,0 +1,8 @@
+../Core/Src/kalman.c:25:21:wrap_0_2pi	3
+../Core/Src/kalman.c:39:12:hall_to_sector	11
+../Core/Src/kalman.c:51:6:HallKF_Init	1
+../Core/Src/kalman.c:76:6:HallKF_Tick40us	1
+../Core/Src/kalman.c:81:6:HallKF_OnHallEdgeGPIO	1
+../Core/Src/kalman.c:85:6:HallKF_Predict	1
+../Core/Src/kalman.c:100:13:update_theta	1
+../Core/Src/kalman.c:105:13:update_omega	1

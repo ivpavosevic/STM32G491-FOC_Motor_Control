@@ -1,2 +1,0 @@
-../Core/Src/sin_lut.c:11:5:sinLUT_Init	16	static
-../Core/Src/sin_lut.c:22:7:sinLUT_Get	16	static

@@ -26,6 +26,7 @@
 #include "cordic_sin.h"
 #include "pwm.h"
 #include "uart.h"
+#include "kalman.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -116,8 +117,8 @@ int main(void)
 
   // Initialize CORDIC sine module
   if (CORDIC_Sin_Init(&hcordic, 50000.0f) == CORDIC_SIN_OK) {
-    // Set initial motor frequency (Hz) - adjust as needed
-    CORDIC_Sin_SetFrequency(2.0f);
+    // Set initial motor frequency (Hz)
+    CORDIC_Sin_SetFrequency(10.0f);
   }
   /* USER CODE BEGIN 2 */
 
@@ -139,19 +140,17 @@ int main(void)
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
   HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_3);
 
-
+  /* Set all PWMs to 0 % duty cycle */
   pwm_set_duty_percent(&htim1, TIM_CHANNEL_1, 0);
   pwm_set_duty_percent(&htim1, TIM_CHANNEL_2, 0);
   pwm_set_duty_percent(&htim1, TIM_CHANNEL_3, 0);
 
   /* Set CNT value to trigger the ADC conversion and start the OC */
-  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_4, 20);
+  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_4, 25); // 25/2000 - start of one PWM period, not exactly on 0
   HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_4);
 
   /* Init of ADC module */
   ADC_Init(&hadc1);
-
-  ADC_StartCalibration(&hadc1);
 
   /* Enable Interrupts on TIM1*/
   HAL_TIM_Base_Start_IT(&htim1);
@@ -167,12 +166,13 @@ int main(void)
   const char *msg = "UART ready\r\n";
   HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
 
-  // pwm_set_duty_percent(&htim1, TIM_CHANNEL_1, 50); /* To set FIXED PWM duty cycle */
-
-  // Fill LUT table (legacy)
-  //sinLUT_Init();
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET); // for debugging purpose
 
+  /* Used for debugging purposes to identify duration of interrupt */
+  DWT_Init();
+
+  /* Calculate the offsets of ADC for each phase */
+  ADC_StartCalibration(&hadc1);
 
   /* USER CODE END 2 */
 
@@ -197,38 +197,30 @@ int main(void)
   uint8_t angle_flag = 0;
   while (1) {
     now = HAL_GetTick();
-    if ((now - last_period_ms >= 1000)) {
-      ADC1_PopCurrentsValues(&reading);
-      uint16_t ia = reading.ia_raw;
-      uint16_t ib = reading.ib_raw;
-      uint16_t ic = reading.ic_raw;
-////
-      float Ia = ADC_ConvRawCurrValue(ia, 1);
-      float Ib = ADC_ConvRawCurrValue(ib, 2);
-      float Ic = ADC_ConvRawCurrValue(ic, 3);
+    if ((now - last_period_ms >= 750)) {
 
-      calculateClarke(Ia, Ib, Ic, &I_alfa, &I_beta);
-      calculatePark();
+      // TEST purposes code
 
+      float Id = get_Id();
+      float Iq = get_Iq();
+      float Ialfa = get_Ialfa();
+      float Ibeta = get_Ibeta();
 
+      float f_Id = (Id>0) ? floorf(Id) : ceilf(Id);
+      float f_Iq = (Iq>0) ? floorf(Iq) : ceilf(Iq);
 
-      hall_read = readHall();
-//      if(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6) == GPIO_PIN_SET || HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_11) == GPIO_PIN_RESET ){
-//          CORDIC_Change_Constant_Angle(angle_flag);
-//          angle_flag++;
-//          if(angle_flag == 6){ angle_flag = 0;}
-//      }
+      float f_Ialfa = (Ialfa>0) ? floorf(Ialfa) : ceilf(Ialfa);
+      float f_Ibeta = (Ibeta>0) ? floorf(Ibeta) : ceilf(Ibeta);
 
-
-//
-      int n1 = snprintf(buf1, sizeof(buf1), "Current A = %d A\r\n", (int) (Ia));
+      int n1 = snprintf(buf1, sizeof(buf1), "Current Id= %d.%03d A\r\n", (int) (f_Id), (int) abs(((Id - f_Id))*100));
       HAL_UART_Transmit(&huart2, (uint8_t *)buf1, n1, HAL_MAX_DELAY);
-      int n2 = snprintf(buf2, sizeof(buf2), "Current B = %d A\r\n", (int) (Ib)));
+      int n2 = snprintf(buf2, sizeof(buf2), "Current Iq= %d.%03d A\r\n\n", (int) f_Iq, (int) abs(((Iq - f_Iq))*100));
       HAL_UART_Transmit(&huart2, (uint8_t *)buf2, n2, HAL_MAX_DELAY);
 
       last_period_ms = now;
     }
 
+    // UART communication
     if (UART_IsLineReady()) {
       char line[RX_LINE_MAX];
       UART_GetLine(line, RX_LINE_MAX);

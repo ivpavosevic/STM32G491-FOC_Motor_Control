@@ -5,9 +5,8 @@
  * control.c
  *
  *
- * Purpose: This file contains logics for
- * controlling the input (Ud, Uq) and
- * proccessing of feedback loop (Id, Iq)
+ * Purpose: PID regulation (Ud, Uq input and Id and Iq feedback),
+ * Hall sensors interrupt handlers
  *
  *
  *
@@ -153,8 +152,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     int n4;
     if(print_flag){
     	for(uint8_t i = 0; i<TEST_SIZE*2; i=i+2) {
-    		n4 = snprintf(buf4, sizeof(buf4), "Hall state = %03d, angle = %d\r\n", (int)array_states[i], (int)array_states[i+1]);
-            HAL_UART_Transmit(s_huart, (uint8_t *)buf4, n4, HAL_MAX_DELAY);
+    		//n4 = snprintf(buf4, sizeof(buf4), "Hall state = %03d, angle = %d\r\n", (int)array_states[i], (int)array_states[i+1]);
+            //HAL_UART_Transmit(s_huart, (uint8_t *)buf4, n4, HAL_MAX_DELAY);
     	}
 
     }

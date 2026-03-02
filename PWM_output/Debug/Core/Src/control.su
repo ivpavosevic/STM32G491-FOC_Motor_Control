@@ -1,6 +1,6 @@
-../Core/Src/control.c:43:6:Control_Init	24	static
-../Core/Src/control.c:75:10:readHall	24	static
-../Core/Src/control.c:107:10:readAngle	16	static
-../Core/Src/control.c:117:6:Control_Set3PhaseV	40	static
-../Core/Src/control.c:133:6:HAL_GPIO_EXTI_Callback	104	static
-../Core/Src/control.c:201:6:process_line	72	static
+../Core/Src/control.c:44:6:Control_Init	24	static
+../Core/Src/control.c:76:10:readHall	24	static
+../Core/Src/control.c:108:10:readAngle	16	static
+../Core/Src/control.c:118:6:Control_Set3PhaseV	40	static
+../Core/Src/control.c:134:6:HAL_GPIO_EXTI_Callback	96	static
+../Core/Src/control.c:202:6:process_line	72	static
