@@ -43,7 +43,7 @@ void calculateInvClarke(float *Ua, float *Ub, float *Uc, float Ualpha, float Ube
 
 void calculateClarke(float Ia, float Ib, float Ic, float *Ialpha, float *Ibeta);
 
-void calculatePark(float Ialpha, float Ibeta, float *Iq, float *Id);
+void calculatePark(float Ialpha, float Ibeta, float theta, float *Iq, float *Id);
 
 void calculateInvPark(float *Ualpha, float *Ubeta, float Uq, float Ud);
 

@@ -27,7 +27,7 @@
 #include "pwm.h"
 #include "uart.h"
 #include "kalman.h"
-
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -114,17 +114,17 @@ int main(void)
   MX_TIM1_Init();
   MX_USART2_UART_Init();
   MX_CORDIC_Init();
-
+  /* USER CODE BEGIN 2 */
   // Initialize CORDIC sine module
   if (CORDIC_Sin_Init(&hcordic, 50000.0f) == CORDIC_SIN_OK) {
-    // Set initial motor frequency (Hz)
-    CORDIC_Sin_SetFrequency(10.0f);
+    // Set initial motor frequency (Hz) - adjust as needed
+    CORDIC_Sin_SetFrequency(13.0f);
   }
-  /* USER CODE BEGIN 2 */
 
   /* Set disable and enable output pins */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);  // disable
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET); // enable
+
 
   /*ADC calibration*/
   HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
@@ -140,25 +140,33 @@ int main(void)
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
   HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_3);
 
+  /* CH4 is set as PWM and triggers TRGO for ADC on rising edge */
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
+  setCH4duty(&htim1, 25); // sets duty at 25/2000 circa 1%
+
   /* Set all PWMs to 0 % duty cycle */
   pwm_set_duty_percent(&htim1, TIM_CHANNEL_1, 0);
   pwm_set_duty_percent(&htim1, TIM_CHANNEL_2, 0);
   pwm_set_duty_percent(&htim1, TIM_CHANNEL_3, 0);
 
-  /* Set CNT value to trigger the ADC conversion and start the OC */
-  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_4, 25); // 25/2000 - start of one PWM period, not exactly on 0
-  HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_4);
-
-  /* Init of ADC module */
-  ADC_Init(&hadc1);
-
-  /* Enable Interrupts on TIM1*/
-  HAL_TIM_Base_Start_IT(&htim1);
-
   /* Init of control module, all PWM D.C. set to 0 */
   Control_Init(&htim1, TIM_CHANNEL_1, &huart2);
   Control_Init(&htim1, TIM_CHANNEL_2, &huart2);
   Control_Init(&htim1, TIM_CHANNEL_3, &huart2);
+
+  /* Enable Interrupts on TIM1*/
+  HAL_TIM_Base_Start_IT(&htim1);
+
+  /* Before starting ADC and Kalman calibrate rotor in position theta = 0, omega = 0*/
+  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_6);  // enable
+  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_11); // disable
+  while(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_11) == GPIO_PIN_RESET || HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6) == GPIO_PIN_SET){
+	  // do nothing, wait, waiting for Hall interrupt
+  }
+
+  /* Init of ADC module */
+  uint16_t theta_0 = init_Hall_meas_angle;
+  ADC_Init(&hadc1, theta_0);
 
   /* UART Init - Tx and Rx */
   UART_Init(&huart2);
@@ -173,6 +181,7 @@ int main(void)
 
   /* Calculate the offsets of ADC for each phase */
   ADC_StartCalibration(&hadc1);
+
 
   /* USER CODE END 2 */
 
@@ -214,7 +223,8 @@ int main(void)
 
       int n1 = snprintf(buf1, sizeof(buf1), "Current Id= %d.%03d A\r\n", (int) (f_Id), (int) abs(((Id - f_Id))*100));
       HAL_UART_Transmit(&huart2, (uint8_t *)buf1, n1, HAL_MAX_DELAY);
-      int n2 = snprintf(buf2, sizeof(buf2), "Current Iq= %d.%03d A\r\n\n", (int) f_Iq, (int) abs(((Iq - f_Iq))*100));
+//      int n2 = snprintf(buf2, sizeof(buf2), "Current Iq= %d.%03d A\r\n\n", (int) f_Iq, (int) abs(((Iq - f_Iq))*100));
+      int n2 = snprintf(buf2, sizeof(buf2), "Current angle= %d stepeni\r\n\n", (int) new_Hall_meas_angle);
       HAL_UART_Transmit(&huart2, (uint8_t *)buf2, n2, HAL_MAX_DELAY);
 
       last_period_ms = now;
@@ -340,7 +350,7 @@ static void MX_ADC1_Init(void)
   sConfigInjected.InjectedDiscontinuousConvMode = DISABLE;
   sConfigInjected.AutoInjectedConv = DISABLE;
   sConfigInjected.QueueInjectedContext = DISABLE;
-  sConfigInjected.ExternalTrigInjecConv = ADC_EXTERNALTRIGINJEC_T1_CC4;
+  sConfigInjected.ExternalTrigInjecConv = ADC_EXTERNALTRIGINJEC_T1_TRGO2;
   sConfigInjected.ExternalTrigInjecConvEdge = ADC_EXTERNALTRIGINJECCONV_EDGE_RISING;
   sConfigInjected.InjecOversamplingMode = DISABLE;
   if (HAL_ADCEx_InjectedConfigChannel(&hadc1, &sConfigInjected) != HAL_OK)
@@ -459,12 +469,8 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  if (HAL_TIM_OC_Init(&htim1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_OC4REF;
-  sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_OC4REF_RISINGFALLING;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
   {
@@ -489,8 +495,7 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_TOGGLE;
-  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
+  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
   {
     Error_Handler();
   }

@@ -23,7 +23,7 @@ typedef struct {
 } adc_curr_raw_t;
 
 /*Use privately the pointer for hadc*/
-void ADC_Init(ADC_HandleTypeDef *hadc);
+void ADC_Init(ADC_HandleTypeDef *hadc, uint16_t theta_0);
 
 
 void DWT_Init(void);

@@ -33,7 +33,7 @@ Core/Src/control.o: ../Core/Src/control.c ../Core/Inc/adc.h \
  ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart.h \
  ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart_ex.h \
  ../Core/Inc/pwm.h ../Core/Inc/uart.h ../Core/Inc/cordic_sin.h \
- ../Core/Inc/control.h
+ ../Core/Inc/control.h ../Core/Inc/kalman.h
 ../Core/Inc/adc.h:
 ../Core/Inc/main.h:
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal.h:
@@ -73,3 +73,4 @@ Core/Src/control.o: ../Core/Src/control.c ../Core/Inc/adc.h \
 ../Core/Inc/uart.h:
 ../Core/Inc/cordic_sin.h:
 ../Core/Inc/control.h:
+../Core/Inc/kalman.h:

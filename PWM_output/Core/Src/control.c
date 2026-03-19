@@ -19,6 +19,7 @@
 #include "uart.h"
 #include "cordic_sin.h"
 #include "control.h"
+#include "kalman.h"
 
 static TIM_HandleTypeDef *s_htim_pwm = NULL;
 
@@ -33,9 +34,18 @@ static volatile uint8_t print_flag = 0;
 static UART_HandleTypeDef *s_huart = NULL;
 static volatile uint32_t pwm_duty = 0;
 
+
 static uint32_t array_states[2*TEST_SIZE];
 
 static foc_u_alfabeta_t control_alfabeta;
+
+
+volatile uint8_t new_Hall_meas_flag = 0;
+
+volatile uint16_t new_Hall_meas_angle = 0;
+volatile uint16_t init_Hall_meas_angle = 0;
+
+volatile uint16_t startPosCal;
 
 /*
  * Initialization for Control mechanism - setting up local variables and default values
@@ -58,6 +68,7 @@ void Control_Init(TIM_HandleTypeDef *htim_pwm, uint32_t pwm_channel,
       pwm_ch3 = pwm_channel;
       pwm_set_duty_percent(s_htim_pwm, pwm_ch3, 0);
     }
+    startPosCal = 24; // One mechanical circle is
   }
 
 
@@ -148,6 +159,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_11); // disable
 
 
+
     hall_state = readHall();
     int n4;
     if(print_flag){
@@ -158,26 +170,37 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
     }
 
-  } else if (GPIO_Pin == GPIO_PIN_4 || GPIO_Pin == GPIO_PIN_5 || GPIO_Pin == GPIO_PIN_2){
+  }/*
+  * Interrupt raised every 60°, updates flag for Kalman update step and hall_state
+  */
+
+  else if ((GPIO_Pin == GPIO_PIN_4 || GPIO_Pin == GPIO_PIN_5 || GPIO_Pin == GPIO_PIN_2) && startPosCal > 0){
 	  uint32_t hall_state_new = readHall();
-	  uint32_t angle_new = readAngle();
 	  if (hall_state_new != hall_state){
+		  // Update new hall_state value
 		  hall_state = hall_state_new;
-
-		  if(counter_hall < TEST_SIZE){
-			  array_states[counter_hall*2] = hall_state_new;
-			  array_states[counter_hall*2 + 1] = angle_new;
-
-		  } else{
-			  print_flag = 1;
+		  if(startPosCal-- <= 6 && hall_state == 101 ){ // turn off rotation
+			  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);  // disable
+			  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET); // enable
+			  init_Hall_meas_angle = 0;
+			  startPosCal = 0;
 		  }
-		  counter_hall++;
-
 
 	  }
   }
-}
 
+  else if ((GPIO_Pin == GPIO_PIN_4 || GPIO_Pin == GPIO_PIN_5 || GPIO_Pin == GPIO_PIN_2) && startPosCal == 0){
+	  uint32_t hall_state_new = readHall();
+	  if (hall_state_new != hall_state){
+		  // Update new hall_state value
+		  hall_state = hall_state_new;
+
+		  // Update flag for new Hall interrupt
+		  new_Hall_meas_flag = 1;
+		  new_Hall_meas_angle = 60 *  hall_to_sector(hall_state_new);
+	  }
+  }
+}
 
 
 

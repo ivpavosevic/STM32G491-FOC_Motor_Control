@@ -1,8 +1,7 @@
-../Core/Src/kalman.c:25:21:wrap_0_2pi	3
-../Core/Src/kalman.c:39:12:hall_to_sector	11
-../Core/Src/kalman.c:51:6:HallKF_Init	1
-../Core/Src/kalman.c:76:6:HallKF_Tick40us	1
-../Core/Src/kalman.c:81:6:HallKF_OnHallEdgeGPIO	1
-../Core/Src/kalman.c:85:6:HallKF_Predict	1
-../Core/Src/kalman.c:100:13:update_theta	1
-../Core/Src/kalman.c:105:13:update_omega	1
+../Core/Src/kalman.c:28:21:wrap_0_2pi	3
+../Core/Src/kalman.c:42:10:hall_to_sector	11
+../Core/Src/kalman.c:55:6:HallKF_Init	1
+../Core/Src/kalman.c:81:6:HallKF_Tick40us	1
+../Core/Src/kalman.c:86:6:HallKF_OnHallEdgeGPIO	1
+../Core/Src/kalman.c:92:6:KF_Predict	1
+../Core/Src/kalman.c:108:6:KF_Update	1

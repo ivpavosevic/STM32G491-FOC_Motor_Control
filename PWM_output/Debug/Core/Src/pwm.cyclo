@@ -1,2 +1,3 @@
-../Core/Src/pwm.c:18:6:pwm_set_duty_percent	8
-../Core/Src/pwm.c:29:6:HAL_TIM_PeriodElapsedCallback	2
+../Core/Src/pwm.c:22:6:pwm_set_duty_percent	8
+../Core/Src/pwm.c:34:6:HAL_TIM_PeriodElapsedCallback	2
+../Core/Src/pwm.c:70:6:setCH4duty	1

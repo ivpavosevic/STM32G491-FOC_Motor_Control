@@ -10,6 +10,8 @@
 
 #include "adc.h"
 #include "cordic_sin.h"
+#include "kalman.h"
+#include "control.h"
 
 
 /* Shared between ISR and main context */
@@ -23,16 +25,22 @@ static volatile float current_A;
 static volatile float current_B;
 static volatile float current_C;
 
-volatile uint32_t dwtStartTime = 0;
-volatile uint32_t dwtEndTime = 0;
-volatile uint32_t dwtTotalTime = 0;
+static uint32_t dwtADC1stTime = 0;
+static uint32_t dwtADC2ndTime = 0;
+static uint32_t dwtTotalTime = 0;
 
 static volatile uint16_t offsetA, offsetB, offsetC;
 
+volatile HallKF kf;
+static float dt = 0;
+static float theta = 0;
+static float theta_measured = 0.0f;
+
 float conv_const = (VREF_V) / (ADC_MAX_VALUE * GAIN * R_SHUNT);
 
-void ADC_Init(ADC_HandleTypeDef *hadc){
+void ADC_Init(ADC_HandleTypeDef *hadc, uint16_t theta_0){
 	HAL_ADCEx_InjectedStart_IT(hadc);
+	HallKF_Init(&kf, theta_0);
 }
 
 /* Used for debugging purposes to identify duration of interrupt */
@@ -41,6 +49,10 @@ void DWT_Init(void) {
 	CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk; // Enable trace and debug
 	DWT->CYCCNT = 0;                                // Reset counter
 	DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;            // Enable the cycle counter
+}
+
+float convert_ticks_to_us(uint32_t delta_time){
+	return delta_time / 100.0f; // 1 tick = 10^-8 sec * 10^6 to be in usec
 }
 
 /* Converts raw value of currents Ia, Ib and Ic */
@@ -100,9 +112,8 @@ void ADC_StartCalibration(ADC_HandleTypeDef *hadc){
 /* Interrupt for reading the ADC values and perforimg Clarke and Parke transforms (every 40 us)*/
 void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
-	/* Checking duration of the interrupt */
-	dwtStartTime = DWT->CYCCNT;
 
+	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8); // for debugging purpose
 	if (hadc->Instance != ADC1)
         return;
 
@@ -116,22 +127,42 @@ void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)
     s_raw.ic_raw = (uint16_t)HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_3);
 
     if(s_adc_calibrated == 1){
-        // Transform raw to readable data
+      // Transform raw to readable data
         current_A = ADC_ConvRawCurrValue(s_raw.ia_raw, 1);
         current_B = ADC_ConvRawCurrValue(s_raw.ib_raw, 2);
         current_C = ADC_ConvRawCurrValue(s_raw.ic_raw, 3);
 
-        // Perform Clarke transform
+      // Perform Clarke transform
         calculateClarke(current_A, current_B, current_C, &s_clarke.i_alfa, &s_clarke.i_beta);
 
-        // Perform Park transform
-        calculatePark(s_clarke.i_alfa, s_clarke.i_beta, &s_park.i_d, &s_park.i_q);
+      // Perform Kalman filter on angle and speed
+
+      /* Checking duration between interrupts */
+        dwtADC2ndTime = DWT->CYCCNT; // Get the cycle value after we had executed our code
+        dwtTotalTime = dwtADC2ndTime - dwtADC1stTime; // Calculate how many cycles have passed
+    	dwtADC1stTime = DWT->CYCCNT;
+    	dt = convert_ticks_to_us(dwtTotalTime);
+
+
+      //1st step: Kalman prediction - done every ADC interrupt
+        KF_Predict(&kf, dt);
+
+      // 2nd step: Kalman update - done every time new Hall data appears
+        if(new_Hall_meas_flag == 1){
+        	theta_measured = (float) new_Hall_meas_angle;
+        	KF_Update(&kf, theta_measured);
+        	new_Hall_meas_flag = 0;
+
+        }
+
+      // Perform Park transform
+        calculatePark(s_clarke.i_alfa, s_clarke.i_beta, kf.theta, &s_park.i_d, &s_park.i_q);
     }
 
     s_adc_new  = 1;
-    /* End of duration check */
-    dwtEndTime = DWT->CYCCNT; // Get the cycle value after we had executed our code
-    dwtTotalTime = dwtEndTime - dwtStartTime; // Calculate how many cycles have passed
+
+
+    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8); // for debugging purpose
 
 }
 

@@ -39,34 +39,36 @@ static inline float wrap_pm_pi(float a) {
 }
 
 // Map Hall readings to sectors
-static int hall_to_sector(uint32_t hall_dec, uint8_t *sector_out) {
+uint16_t hall_to_sector(uint32_t hall_dec) {
+  uint8_t sector_out;
   switch (hall_dec) {
-    case 1:   *sector_out = 0; return 1; // 001
-    case 101: *sector_out = 1; return 1; // 101
-    case 100: *sector_out = 2; return 1; // 100
-    case 110: *sector_out = 3; return 1; // 110
-    case 10:  *sector_out = 4; return 1; // 010
-    case 11:  *sector_out = 5; return 1; // 011
-    default:  return 0; // invalid (000/111)
+    case 101:  sector_out = 0; return sector_out; // 101
+    case 100:  sector_out = 1; return sector_out; // 100
+    case 110:  sector_out = 2; return sector_out; // 110
+    case 10:   sector_out = 3; return sector_out; // 010
+    case 11:   sector_out = 4; return sector_out; // 011
+    case 1:    sector_out = 5; return sector_out; // 001
+    default:  return 255; // invalid (000/111)
   }
 }
 
-void HallKF_Init(HallKF *kf, float ts_sec) {
-  kf->theta = 0.0f;
+void HallKF_Init(HallKF *kf, uint16_t theta_0) {
+  kf->theta = (float) theta_0;
   kf->omega = 0.0f;
   kf->p00 = 1.0f;
   kf->p01 = 0.0f;
   kf->p11 = 100.0f;
-  kf->ts = ts_sec;
+  kf->ts = 0;
 
   // Process noise (start conservative for smooth omega)
   kf->q_theta = 1e-5f;
-  kf->q_omega = 0.01f;  // tune later; smaller => smoother omega
+  kf->q_omega = 0.001f;  // tune later; smaller => smoother omega
 
   // Hall sector quantization variance: (Δθ)^2/12
   kf->r_theta = (SECTOR_STEP * SECTOR_STEP) / 12.0f;
-  // omega measurement noise clamp (avoid insane gains at very low speed)
-  kf->r_omega_min = 100.0f;
+
+  kf->K_theta = 0.0f;
+  kf->K_omega = 0.0f;
 
   kf->theta_off = 0.0f;
   kf->ticks_since_edge = 0;
@@ -85,12 +87,15 @@ void HallKF_OnHallEdgeGPIO(HallKF *kf, uint32_t hall_state_dec) {
 // TO DO - behaviour on HALL ISR
 }
 
-void HallKF_Predict(HallKF *kf) {
-  // x^- = A x
+
+// Prediction step every 40us, part of ADC interrupt
+void KF_Predict(HallKF *kf, float dt) {
+  kf->ts = dt;
+  // x^- = A * x
   kf->theta = wrap_0_2pi(kf->theta + kf->ts * kf->omega);
   // omega_hat(k+1) = omega_hat(k)
 
-  // P^- update in scalar form (A = [[1 Ts],[0 1]])
+  // P^- update in scalar form (A = [[1 Ts],[0 1]]) P^- = A*P*A^T + Q
   const float Ts = kf->ts;
   const float p00 = kf->p00, p01 = kf->p01, p11 = kf->p11;
 
@@ -99,15 +104,24 @@ void HallKF_Predict(HallKF *kf) {
   kf->p11 = p11 + kf->q_omega;
 }
 
-// 1D update for theta: H=[1 0]
-static void update_theta(HallKF *kf, float theta_meas) {
-// TO DO
+// Update step done when new Hall information is present
+void KF_Update(HallKF *kf, float theta_meas) {
+ // update Kalman gain K = (P*H^T)  / (H * P * H^T + R) => K(2x1 matrix)
+  kf->K_theta = kf->p00 / (kf->p00 +kf->r_theta);
+  kf->K_omega = kf->p01 / (kf->p00 +kf->r_theta);
+
+
+  // Overwrite estimation of theta and omega x = x + K*(Z - H*x);
+  kf->theta = kf->theta + kf->K_theta * (theta_meas - kf->theta); // θ_est = θ_est + k_θ * (θ_meas - θ_est)
+  kf->omega = kf->omega + kf->K_omega * (theta_meas - kf->theta); // w_est = w_est + k_w * (θ_meas - θ_est)
+
+  // Update covariance matrix P = (I - K*H)*P
+  kf->p00 = (1-kf->K_theta) * kf->p00;
+  kf->p11 = kf->p11 - kf->K_omega * kf->p01;
+  kf->p01 = (1-kf->K_theta) * kf->p01;
+
 }
 
-// 1D update for omega: H=[0 1]
-static void update_omega(HallKF *kf, float omega_meas, float r_omega) {
-// TO DO
-}
 
 
 

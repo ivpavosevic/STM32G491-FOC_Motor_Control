@@ -12,6 +12,8 @@
 #include "cordic_sin.h"
 #include "control.h"
 
+static TIM_HandleTypeDef s_htim;
+
 /* Modulation index (0.0 to 1.0) - controls amplitude */
 static float s_modulation_index = 0.11f;
 
@@ -32,8 +34,9 @@ void pwm_set_duty_percent(TIM_HandleTypeDef *htim, uint32_t channel,
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) { // TO DO check duration of this interrupt
   if (htim->Instance != TIM1)
     return;
+  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8);
 
-  float Ua, Ub, Uc;
+  static float Ua, Ub, Uc;
   uint32_t ccr1, ccr2, ccr3;
   static uint32_t counter = 0;
 
@@ -42,7 +45,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) { // TO DO check dur
   const float k = 0.5f * s_modulation_index;
 
   /* function that fulfills Ua, Ub, Uc */
+
   Control_Set3PhaseV(&Ua, &Ub, &Uc);
+
 
   /* Convert sine (-1 to 1) to duty cycle (0 to 1) */
   float duty_a = 0.5f + k * Ua;
@@ -58,6 +63,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) { // TO DO check dur
   __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_1, ccr1);
   __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_2, ccr2);
   __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_3, ccr3);
+  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8);
 
+}
+
+void setCH4duty(TIM_HandleTypeDef *htim, uint32_t pwm4_duty){
+	__HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_4, pwm4_duty);
+	return;
 }
 

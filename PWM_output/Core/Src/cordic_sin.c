@@ -203,10 +203,10 @@ void calculateClarke(float Ia, float Ib, float Ic, float *Ialpha, float *Ibeta){
 	return;
 }
 
-void calculatePark(float Ialpha, float Ibeta, float *Iq, float *Id){
+void calculatePark(float Ialpha, float Ibeta, float theta, float *Iq, float *Id){
 	float sin_t, cos_t;
 
-	int result = cordic_calculate((int32_t)s_angle_uq31, &sin_t, &cos_t);
+	int result = cordic_calculate(theta, &sin_t, &cos_t);
 
 	*Id =  Ialpha * cos_t + Ibeta * sin_t;
 	*Iq = -Ialpha * sin_t + Ibeta * cos_t;

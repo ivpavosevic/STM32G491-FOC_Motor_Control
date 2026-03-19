@@ -65,6 +65,8 @@ void Error_Handler(void);
 #define I2_GPIO_Port GPIOC
 #define I3_Pin GPIO_PIN_1
 #define I3_GPIO_Port GPIOC
+#define ADC_TRGO_Pin GPIO_PIN_3
+#define ADC_TRGO_GPIO_Port GPIOC
 #define I1_Pin GPIO_PIN_0
 #define I1_GPIO_Port GPIOA
 #define Output_Enable_Pin GPIO_PIN_6

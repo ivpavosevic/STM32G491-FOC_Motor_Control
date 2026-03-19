@@ -11,7 +11,9 @@
 
 #define TEST_SIZE 48
 
-
+extern volatile uint8_t new_Hall_meas_flag;
+extern volatile uint16_t new_Hall_meas_angle;
+extern volatile uint16_t init_Hall_meas_angle;
 
 void Control_Init(TIM_HandleTypeDef *htim_pwm, uint32_t pwm_channel, UART_HandleTypeDef *huart);
 

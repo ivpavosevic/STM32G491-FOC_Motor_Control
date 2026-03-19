@@ -19,5 +19,6 @@
 void pwm_set_duty_percent(TIM_HandleTypeDef *htim, uint32_t channel,
                           uint32_t pct);
 
+void setCH4duty(TIM_HandleTypeDef *htim, uint32_t pwm4_duty);
 
 #endif /* INC_PWM_H_ */
