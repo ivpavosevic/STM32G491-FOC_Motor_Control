@@ -10,6 +10,12 @@
 
 #include "main.h"
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846f
+#endif
+
+#define ERR_HALL_FAIL -1
+
 typedef struct {
   float theta;   // rad, electrical, wrapped to [0, 2*pi)
   float omega;   // rad/s, electrical
@@ -25,14 +31,11 @@ typedef struct {
   uint8_t  inited;
 } HallKF;
 
-void HAllKF_Init(HallKF *kf, uint16_t theta_0);
-
-void HallKF_Tick40us(HallKF *kf); // call each ADC ISR tick
-void HallKF_OnHallEdgeGPIO(HallKF *kf, uint32_t hall_state_dec); // call in EXTI ISR (fast)
+void HallKF_Init(HallKF *kf, float theta_0);
 
 void KF_Predict(HallKF *kf, float dt);
 void KF_Update(HallKF *kf, float theta_meas);
 
-uint16_t hall_to_sector(uint32_t hall_dec);
+uint32_t hall_to_sector(uint32_t hall_dec);
 
 #endif /* INC_KALMAN_H_ */

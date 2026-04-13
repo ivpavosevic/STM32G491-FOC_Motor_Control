@@ -58,6 +58,7 @@ DMA_HandleTypeDef hdma_cordic_read;
 TIM_HandleTypeDef htim1;
 
 UART_HandleTypeDef huart2;
+DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
 
@@ -118,13 +119,12 @@ int main(void)
   // Initialize CORDIC sine module
   if (CORDIC_Sin_Init(&hcordic, 50000.0f) == CORDIC_SIN_OK) {
     // Set initial motor frequency (Hz) - adjust as needed
-    CORDIC_Sin_SetFrequency(13.0f);
+    CORDIC_Sin_SetFrequency(10.0f);
   }
 
   /* Set disable and enable output pins */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);  // disable
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET); // enable
-
 
   /*ADC calibration*/
   HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
@@ -140,9 +140,9 @@ int main(void)
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
   HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_3);
 
-  /* CH4 is set as PWM and triggers TRGO for ADC on rising edge */
+  /* CH4 is set as PWM and triggers TRGO for ADC on falling edge */
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
-  setCH4duty(&htim1, 25); // sets duty at 25/2000 circa 1%
+  setCH4duty(&htim1, 100); // ADC triggered on falling edge so at the end of the period
 
   /* Set all PWMs to 0 % duty cycle */
   pwm_set_duty_percent(&htim1, TIM_CHANNEL_1, 0);
@@ -157,15 +157,9 @@ int main(void)
   /* Enable Interrupts on TIM1*/
   HAL_TIM_Base_Start_IT(&htim1);
 
-  /* Before starting ADC and Kalman calibrate rotor in position theta = 0, omega = 0*/
-  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_6);  // enable
-  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_11); // disable
-  while(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_11) == GPIO_PIN_RESET || HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6) == GPIO_PIN_SET){
-	  // do nothing, wait, waiting for Hall interrupt
-  }
-
-  /* Init of ADC module */
-  uint16_t theta_0 = init_Hall_meas_angle;
+  /* Init of ADC module -> init angle for Kalman filter is reading of the Hall sensors, rough estimation */
+  uint32_t hall_state_0 = readHall();
+  float theta_0 = M_PI/3.0f *  hall_to_sector(hall_state_0);
   ADC_Init(&hadc1, theta_0);
 
   /* UART Init - Tx and Rx */
@@ -175,6 +169,8 @@ int main(void)
   HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
 
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET); // for debugging purpose
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_RESET); // for debugging purpose
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET); // for debugging purpose
 
   /* Used for debugging purposes to identify duration of interrupt */
   DWT_Init();
@@ -205,30 +201,30 @@ int main(void)
 
   uint8_t angle_flag = 0;
   while (1) {
-    now = HAL_GetTick();
-    if ((now - last_period_ms >= 750)) {
+//	  now = HAL_GetTick();
+//	  if ((now - last_period_ms >= 750)) {
+//
+//		// TEST purposes code
+//
+//		float Id = get_Id();
+//		float Iq = get_Iq();
+//		float Ialfa = get_Ialfa();
+//		float Ibeta = get_Ibeta();
+//
+//		float f_Id = (Id>0) ? floorf(Id) : ceilf(Id);
+//		float f_Iq = (Iq>0) ? floorf(Iq) : ceilf(Iq);
+//
+//		float f_Ialfa = (Ialfa>0) ? floorf(Ialfa) : ceilf(Ialfa);
+//		float f_Ibeta = (Ibeta>0) ? floorf(Ibeta) : ceilf(Ibeta);
+//
+//		int n1 = snprintf(buf1, sizeof(buf1), "Current Id= %d.%03d A\r\n", (int) (f_Id), (int) abs(((Id - f_Id))*100));
+//		HAL_UART_Transmit(&huart2, (uint8_t *)buf1, n1, HAL_MAX_DELAY);
+//		int n2 = snprintf(buf2, sizeof(buf2), "Current Iq= %d.%03d A\r\n\n", (int) f_Iq, (int) abs(((Iq - f_Iq))*100));
+//		HAL_UART_Transmit(&huart2, (uint8_t *)buf2, n2, HAL_MAX_DELAY);
+//
+//		last_period_ms = now;
+//	  }
 
-      // TEST purposes code
-
-      float Id = get_Id();
-      float Iq = get_Iq();
-      float Ialfa = get_Ialfa();
-      float Ibeta = get_Ibeta();
-
-      float f_Id = (Id>0) ? floorf(Id) : ceilf(Id);
-      float f_Iq = (Iq>0) ? floorf(Iq) : ceilf(Iq);
-
-      float f_Ialfa = (Ialfa>0) ? floorf(Ialfa) : ceilf(Ialfa);
-      float f_Ibeta = (Ibeta>0) ? floorf(Ibeta) : ceilf(Ibeta);
-
-      int n1 = snprintf(buf1, sizeof(buf1), "Current Id= %d.%03d A\r\n", (int) (f_Id), (int) abs(((Id - f_Id))*100));
-      HAL_UART_Transmit(&huart2, (uint8_t *)buf1, n1, HAL_MAX_DELAY);
-//      int n2 = snprintf(buf2, sizeof(buf2), "Current Iq= %d.%03d A\r\n\n", (int) f_Iq, (int) abs(((Iq - f_Iq))*100));
-      int n2 = snprintf(buf2, sizeof(buf2), "Current angle= %d stepeni\r\n\n", (int) new_Hall_meas_angle);
-      HAL_UART_Transmit(&huart2, (uint8_t *)buf2, n2, HAL_MAX_DELAY);
-
-      last_period_ms = now;
-    }
 
     // UART communication
     if (UART_IsLineReady()) {
@@ -351,7 +347,7 @@ static void MX_ADC1_Init(void)
   sConfigInjected.AutoInjectedConv = DISABLE;
   sConfigInjected.QueueInjectedContext = DISABLE;
   sConfigInjected.ExternalTrigInjecConv = ADC_EXTERNALTRIGINJEC_T1_TRGO2;
-  sConfigInjected.ExternalTrigInjecConvEdge = ADC_EXTERNALTRIGINJECCONV_EDGE_RISING;
+  sConfigInjected.ExternalTrigInjecConvEdge = ADC_EXTERNALTRIGINJECCONV_EDGE_FALLING;
   sConfigInjected.InjecOversamplingMode = DISABLE;
   if (HAL_ADCEx_InjectedConfigChannel(&hadc1, &sConfigInjected) != HAL_OK)
   {
@@ -591,6 +587,9 @@ static void MX_DMA_Init(void)
   /* DMA1_Channel3_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Channel3_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel3_IRQn);
+  /* DMA1_Channel4_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
 
 }
 
@@ -616,7 +615,10 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5|Output_Enable_Pin|Disable_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(Test_pin_GPIO_Port, Test_pin_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, Test_pin_Pin|Test_pin2_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
@@ -643,24 +645,31 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(HALL_C_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : Test_pin_Pin */
-  GPIO_InitStruct.Pin = Test_pin_Pin;
+  /*Configure GPIO pins : Test_pin_Pin Test_pin2_Pin */
+  GPIO_InitStruct.Pin = Test_pin_Pin|Test_pin2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(Test_pin_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PB8 */
+  GPIO_InitStruct.Pin = GPIO_PIN_8;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI2_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI2_IRQn, 2, 0);
   HAL_NVIC_EnableIRQ(EXTI2_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI4_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI4_IRQn, 2, 0);
   HAL_NVIC_EnableIRQ(EXTI4_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 2, 0);
   HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 2, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */

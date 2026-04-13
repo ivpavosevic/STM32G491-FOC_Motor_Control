@@ -12,6 +12,7 @@
 #include "cordic_sin.h"
 #include "kalman.h"
 #include "control.h"
+#include "ang_est_vectors.h"
 
 
 /* Shared between ISR and main context */
@@ -21,9 +22,9 @@ static volatile adc_curr_raw_t s_raw;
 static foc_i_alfabeta_t s_clarke;
 static foc_i_dq_t s_park;
 
-static volatile float current_A;
-static volatile float current_B;
-static volatile float current_C;
+volatile float current_A;
+volatile float current_B;
+volatile float current_C;
 
 static uint32_t dwtADC1stTime = 0;
 static uint32_t dwtADC2ndTime = 0;
@@ -38,7 +39,7 @@ static float theta_measured = 0.0f;
 
 float conv_const = (VREF_V) / (ADC_MAX_VALUE * GAIN * R_SHUNT);
 
-void ADC_Init(ADC_HandleTypeDef *hadc, uint16_t theta_0){
+void ADC_Init(ADC_HandleTypeDef *hadc, float theta_0){
 	HAL_ADCEx_InjectedStart_IT(hadc);
 	HallKF_Init(&kf, theta_0);
 }
@@ -113,7 +114,7 @@ void ADC_StartCalibration(ADC_HandleTypeDef *hadc){
 void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
 
-	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8); // for debugging purpose
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_SET); // for debugging purpose
 	if (hadc->Instance != ADC1)
         return;
 
@@ -135,15 +136,11 @@ void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)
       // Perform Clarke transform
         calculateClarke(current_A, current_B, current_C, &s_clarke.i_alfa, &s_clarke.i_beta);
 
-      // Perform Kalman filter on angle and speed
-
-      /* Checking duration between interrupts */
+        /* Checking duration between interrupts */
         dwtADC2ndTime = DWT->CYCCNT; // Get the cycle value after we had executed our code
         dwtTotalTime = dwtADC2ndTime - dwtADC1stTime; // Calculate how many cycles have passed
     	dwtADC1stTime = DWT->CYCCNT;
     	dt = convert_ticks_to_us(dwtTotalTime);
-
-
       //1st step: Kalman prediction - done every ADC interrupt
         KF_Predict(&kf, dt);
 
@@ -162,10 +159,12 @@ void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)
     s_adc_new  = 1;
 
 
-    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8); // for debugging purpose
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET); // for debugging purpose
 
 }
 
+// Kalman filter legacy code:
+// Perform Kalman filter on angle and speed
 
 float get_Id(void){
 	return s_park.i_d;

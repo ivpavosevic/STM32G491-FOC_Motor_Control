@@ -42,11 +42,7 @@ static foc_u_alfabeta_t control_alfabeta;
 
 volatile uint8_t new_Hall_meas_flag = 0;
 
-volatile uint16_t new_Hall_meas_angle = 0;
-volatile uint16_t init_Hall_meas_angle = 0;
-
-volatile uint16_t startPosCal;
-
+volatile float new_Hall_meas_angle = 0.0f; // in radians
 /*
  * Initialization for Control mechanism - setting up local variables and default values
  */
@@ -68,7 +64,6 @@ void Control_Init(TIM_HandleTypeDef *htim_pwm, uint32_t pwm_channel,
       pwm_ch3 = pwm_channel;
       pwm_set_duty_percent(s_htim_pwm, pwm_ch3, 0);
     }
-    startPosCal = 24; // One mechanical circle is
   }
 
 
@@ -158,38 +153,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_6);  // enable
     HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_11); // disable
 
-
-
-    hall_state = readHall();
-    int n4;
-    if(print_flag){
-    	for(uint8_t i = 0; i<TEST_SIZE*2; i=i+2) {
-    		//n4 = snprintf(buf4, sizeof(buf4), "Hall state = %03d, angle = %d\r\n", (int)array_states[i], (int)array_states[i+1]);
-            //HAL_UART_Transmit(s_huart, (uint8_t *)buf4, n4, HAL_MAX_DELAY);
-    	}
-
-    }
-
   }/*
   * Interrupt raised every 60°, updates flag for Kalman update step and hall_state
   */
-
-  else if ((GPIO_Pin == GPIO_PIN_4 || GPIO_Pin == GPIO_PIN_5 || GPIO_Pin == GPIO_PIN_2) && startPosCal > 0){
-	  uint32_t hall_state_new = readHall();
-	  if (hall_state_new != hall_state){
-		  // Update new hall_state value
-		  hall_state = hall_state_new;
-		  if(startPosCal-- <= 6 && hall_state == 101 ){ // turn off rotation
-			  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);  // disable
-			  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET); // enable
-			  init_Hall_meas_angle = 0;
-			  startPosCal = 0;
-		  }
-
-	  }
-  }
-
-  else if ((GPIO_Pin == GPIO_PIN_4 || GPIO_Pin == GPIO_PIN_5 || GPIO_Pin == GPIO_PIN_2) && startPosCal == 0){
+  else if (GPIO_Pin == GPIO_PIN_4 || GPIO_Pin == GPIO_PIN_5 || GPIO_Pin == GPIO_PIN_2){
 	  uint32_t hall_state_new = readHall();
 	  if (hall_state_new != hall_state){
 		  // Update new hall_state value
@@ -197,9 +164,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
 		  // Update flag for new Hall interrupt
 		  new_Hall_meas_flag = 1;
-		  new_Hall_meas_angle = 60 *  hall_to_sector(hall_state_new);
+		  new_Hall_meas_angle = M_PI/3.0f *  hall_to_sector(hall_state_new);
 	  }
   }
+
 }
 
 

@@ -165,7 +165,7 @@ void CORDIC_Change_Constant_Angle(uint8_t angle_flag){
 		  s_angle_uq31 = 0;
 	    break;
 	  default:
-
+		  break;
 	}
 
 }
@@ -205,8 +205,10 @@ void calculateClarke(float Ia, float Ib, float Ic, float *Ialpha, float *Ibeta){
 
 void calculatePark(float Ialpha, float Ibeta, float theta, float *Iq, float *Id){
 	float sin_t, cos_t;
+	// Convert theta from radins to Q31 format
+	int32_t theta_q31 = radians_to_q31(theta);
 
-	int result = cordic_calculate(theta, &sin_t, &cos_t);
+	int result = cordic_calculate(theta_q31, &sin_t, &cos_t);
 
 	*Id =  Ialpha * cos_t + Ibeta * sin_t;
 	*Iq = -Ialpha * sin_t + Ibeta * cos_t;

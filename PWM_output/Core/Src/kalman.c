@@ -39,7 +39,7 @@ static inline float wrap_pm_pi(float a) {
 }
 
 // Map Hall readings to sectors
-uint16_t hall_to_sector(uint32_t hall_dec) {
+uint32_t hall_to_sector(uint32_t hall_dec) {
   uint8_t sector_out;
   switch (hall_dec) {
     case 101:  sector_out = 0; return sector_out; // 101
@@ -48,12 +48,12 @@ uint16_t hall_to_sector(uint32_t hall_dec) {
     case 10:   sector_out = 3; return sector_out; // 010
     case 11:   sector_out = 4; return sector_out; // 011
     case 1:    sector_out = 5; return sector_out; // 001
-    default:  return 255; // invalid (000/111)
+    default:  ERR_HALL_FAIL;  // invalid (000/111)
   }
 }
 
-void HallKF_Init(HallKF *kf, uint16_t theta_0) {
-  kf->theta = (float) theta_0;
+void HallKF_Init(HallKF *kf, float theta_0) {
+  kf->theta = theta_0;
   kf->omega = 0.0f;
   kf->p00 = 1.0f;
   kf->p01 = 0.0f;
@@ -77,16 +77,6 @@ void HallKF_Init(HallKF *kf, uint16_t theta_0) {
 
   s_ev.valid = 0;
 }
-
-void HallKF_Tick40us(HallKF *kf) {
-  kf->ticks_since_edge++;
-}
-
-// for HALL EXTI ISR
-void HallKF_OnHallEdgeGPIO(HallKF *kf, uint32_t hall_state_dec) {
-// TO DO - behaviour on HALL ISR
-}
-
 
 // Prediction step every 40us, part of ADC interrupt
 void KF_Predict(HallKF *kf, float dt) {
@@ -112,10 +102,13 @@ void KF_Update(HallKF *kf, float theta_meas) {
 
 
   // Overwrite estimation of theta and omega x = x + K*(Z - H*x);
-  kf->theta = kf->theta + kf->K_theta * (theta_meas - kf->theta); // θ_est = θ_est + k_θ * (θ_meas - θ_est)
-  kf->omega = kf->omega + kf->K_omega * (theta_meas - kf->theta); // w_est = w_est + k_w * (θ_meas - θ_est)
+  /* wrapping in -pi,pi range to avoid huge errors when moving from 2pi to 0 */
+  float innovation = wrap_pm_pi(theta_meas - kf->theta);
+  kf->omega = kf->omega + kf->K_omega * innovation; // w_est = w_est + k_w * (θ_meas - θ_est)
+  kf->theta = kf->theta + kf->K_theta * innovation; // θ_est = θ_est + k_θ * (θ_meas - θ_est)
+  kf->theta = wrap_0_2pi(kf->theta);
 
-  // Update covariance matrix P = (I - K*H)*P
+    // Update covariance matrix P = (I - K*H)*P
   kf->p00 = (1-kf->K_theta) * kf->p00;
   kf->p11 = kf->p11 - kf->K_omega * kf->p01;
   kf->p01 = (1-kf->K_theta) * kf->p01;

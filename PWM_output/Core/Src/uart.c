@@ -7,9 +7,10 @@
  *      Author: ivanp
  */
 #include "uart.h"
+#include "adc.h"
 
 
-static volatile uint8_t  rx_byte;
+static uint8_t  rx_byte;
 static char  rx_line[RX_LINE_MAX];
 static volatile uint32_t rx_len = 0;
 static volatile uint8_t rx_line_ready = 0;
@@ -72,3 +73,24 @@ uint8_t UART_IsLineReady(void)
 {
     return rx_line_ready;
 }
+
+/* Function used to send key variables via UART + DMA to Matlab live plot script */
+void UART_Logger(){
+	// Check if DMA is busy
+	if (HAL_DMA_GetState(s_huart->hdmatx) == HAL_DMA_STATE_BUSY) {
+	    return;
+	}
+	// Send data via DMA
+	static char buf1[60];
+	float f_Id = get_Id();
+	float f_Iq = get_Iq();
+    int n1 = snprintf(buf1, sizeof(buf1), "%.3f, %.3f\n ", f_Id, f_Iq);
+    HAL_UART_Transmit_DMA(s_huart, (uint8_t *)buf1, n1);
+
+}
+
+
+
+
+
+

@@ -1,4 +1,5 @@
 "./Core/Src/adc.o"
+"./Core/Src/ang_est_vectors.o"
 "./Core/Src/control.o"
 "./Core/Src/cordic_sin.o"
 "./Core/Src/kalman.o"

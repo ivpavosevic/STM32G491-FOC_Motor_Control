@@ -9,6 +9,6 @@
 ../Core/Src/cordic_sin.c:193:6:calculateInvClarke	32	static
 ../Core/Src/cordic_sin.c:200:6:calculateClarke	32	static
 ../Core/Src/cordic_sin.c:206:6:calculatePark	48	static
-../Core/Src/cordic_sin.c:216:6:calculateInvPark	40	static
-../Core/Src/cordic_sin.c:231:9:CORDIC_Get_Angle	8	static
-../Core/Src/cordic_sin.c:236:5:CORDIC_Sin_Get3Phase	32	static
+../Core/Src/cordic_sin.c:218:6:calculateInvPark	40	static
+../Core/Src/cordic_sin.c:233:9:CORDIC_Get_Angle	8	static
+../Core/Src/cordic_sin.c:238:5:CORDIC_Sin_Get3Phase	32	static
