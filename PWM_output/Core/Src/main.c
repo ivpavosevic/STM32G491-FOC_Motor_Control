@@ -154,6 +154,7 @@ int main(void)
   Control_Init(&htim1, TIM_CHANNEL_2, &huart2);
   Control_Init(&htim1, TIM_CHANNEL_3, &huart2);
 
+
   /* Enable Interrupts on TIM1*/
   HAL_TIM_Base_Start_IT(&htim1);
 
@@ -183,49 +184,7 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  uint32_t last_period_ms = 0;
-  uint32_t now;
-
-  uint32_t hall_read;
-
-  adc_curr_raw_t reading;
-  reading.ia_raw = 0;
-  reading.ib_raw = 0;
-  reading.ic_raw = 0;
-  char buf1[60];
-  char buf2[60];
-  char buf3[60];
-
-  float I_alfa;
-  float I_beta;
-
-  uint8_t angle_flag = 0;
   while (1) {
-//	  now = HAL_GetTick();
-//	  if ((now - last_period_ms >= 750)) {
-//
-//		// TEST purposes code
-//
-//		float Id = get_Id();
-//		float Iq = get_Iq();
-//		float Ialfa = get_Ialfa();
-//		float Ibeta = get_Ibeta();
-//
-//		float f_Id = (Id>0) ? floorf(Id) : ceilf(Id);
-//		float f_Iq = (Iq>0) ? floorf(Iq) : ceilf(Iq);
-//
-//		float f_Ialfa = (Ialfa>0) ? floorf(Ialfa) : ceilf(Ialfa);
-//		float f_Ibeta = (Ibeta>0) ? floorf(Ibeta) : ceilf(Ibeta);
-//
-//		int n1 = snprintf(buf1, sizeof(buf1), "Current Id= %d.%03d A\r\n", (int) (f_Id), (int) abs(((Id - f_Id))*100));
-//		HAL_UART_Transmit(&huart2, (uint8_t *)buf1, n1, HAL_MAX_DELAY);
-//		int n2 = snprintf(buf2, sizeof(buf2), "Current Iq= %d.%03d A\r\n\n", (int) f_Iq, (int) abs(((Iq - f_Iq))*100));
-//		HAL_UART_Transmit(&huart2, (uint8_t *)buf2, n2, HAL_MAX_DELAY);
-//
-//		last_period_ms = now;
-//	  }
-
-
     // UART communication
     if (UART_IsLineReady()) {
       char line[RX_LINE_MAX];

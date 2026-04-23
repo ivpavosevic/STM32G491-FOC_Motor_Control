@@ -70,8 +70,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) { // TO DO check dur
 
 	  /* Calculate CCR values */
 	  ccr1 = (uint32_t)(duty_a * (float)arr);
-	  ccr2 = (uint32_t)(duty_b * (float)arr);
-	  ccr3 = (uint32_t)(duty_c * (float)arr);
+	  ccr3 = (uint32_t)(duty_b * (float)arr); // direction swapped
+	  ccr2 = (uint32_t)(duty_c * (float)arr); // direction swapped
 
 	  /* Set PWM compare values */
 	  __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_1, ccr1);

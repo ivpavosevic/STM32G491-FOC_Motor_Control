@@ -39,10 +39,18 @@ static uint32_t array_states[2*TEST_SIZE];
 
 static foc_u_alfabeta_t control_alfabeta;
 
+static uint32_t dwtGPIO1stTime = 0;
+static uint32_t dwtGPIO2ndTime = 0;
+static uint32_t dwtGPIOTotalTime = 0;
+static float dtGPIO = 0;
+
 
 volatile uint8_t new_Hall_meas_flag = 0;
 
 volatile float new_Hall_meas_angle = 0.0f; // in radians
+
+volatile float new_Hall_meas_speed = 0.0f;
+
 /*
  * Initialization for Control mechanism - setting up local variables and default values
  */
@@ -65,9 +73,39 @@ void Control_Init(TIM_HandleTypeDef *htim_pwm, uint32_t pwm_channel,
       pwm_set_duty_percent(s_htim_pwm, pwm_ch3, 0);
     }
   }
-
-
 }
+
+void Setup_Init(input_params *ip){
+	// Set Ud and Uq before start
+	ip->Uq = 1.0f; // 1 means full bus voltage defined by modulation index in PWM ISR (pwm.c)
+	ip->Ud = 0.0f;
+	ip->rotor_freq = 0.0f;
+	ip->Id_ref = 0.0f;
+	ip->Iq_ref = 0.1f;
+	ip->theta = 0.0f;
+}
+
+void PI_Init_d(PI_reg_t *pi_id){
+	pi_id->Kp = 0.5f;
+	pi_id->Ki = 25.0f;
+	pi_id->sum_err = 0.0f;
+	pi_id->sum_err_limit = 0.3f;
+	pi_id->out_min = -0.3f;
+	pi_id->out_max = 0.3f;
+	pi_id->dt = 0.0002f;
+}
+
+void PI_Init_q(PI_reg_t *pi_iq){
+	pi_iq->Kp = 0.5f;
+	pi_iq->Ki = 25.0f;
+	pi_iq->sum_err = 0.0f;
+	pi_iq->sum_err_limit = 0.5f;
+	pi_iq->out_min = -1.0f;
+	pi_iq->out_max = 1.0f;
+	pi_iq->dt = 0.0002f;
+}
+
+
 
 /**********************
  *
@@ -122,15 +160,30 @@ uint32_t readAngle(void){
  * */
 void Control_Set3PhaseV(float *Ua, float *Ub, float *Uc) {
   float U_alfa, U_beta;
-  float Uq = 1;
-  float Ud = 0;
+  float Uq = ip.Uq;
+  float Ud = ip.Ud;
 
   // Calculate first Inverse Park transform
-  calculateInvPark(&U_alfa, &U_beta, Uq, Ud);
+  calculateInvPark(&U_alfa, &U_beta, ip.theta, Uq, Ud);
 
   //Calculate Inverse Clarke
   calculateInvClarke(Ua, Ub, Uc, U_alfa, U_beta);
 
+}
+
+float Control_PI_reg(PI_reg_t *pi_x, float err){
+
+	//Accumulated error over time
+	pi_x->sum_err += err * pi_x->dt;
+
+	if(pi_x->sum_err > pi_x->sum_err_limit) pi_x->sum_err = pi_x->sum_err_limit;
+	if(pi_x->sum_err < -pi_x->sum_err_limit) pi_x->sum_err = -pi_x->sum_err_limit;
+
+	//Regulated value of voltages
+	float U_x = pi_x->Kp * err + pi_x->Ki * pi_x->sum_err;
+	if(U_x > pi_x->out_max) return pi_x->out_max;
+	if(U_x < pi_x->out_min) return pi_x->out_min;
+	return U_x;
 }
 
 /*
@@ -157,6 +210,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
   * Interrupt raised every 60°, updates flag for Kalman update step and hall_state
   */
   else if (GPIO_Pin == GPIO_PIN_4 || GPIO_Pin == GPIO_PIN_5 || GPIO_Pin == GPIO_PIN_2){
+      /* Checking duration between interrupts */
+      dwtGPIO2ndTime = DWT->CYCCNT; // Get the cycle value after we had executed our code
+      dwtGPIOTotalTime = dwtGPIO2ndTime - dwtGPIO1stTime; // Calculate how many cycles have passed
+      dwtGPIO1stTime = DWT->CYCCNT;
+      dtGPIO = convert_ticks_to_s(dwtGPIOTotalTime);
 	  uint32_t hall_state_new = readHall();
 	  if (hall_state_new != hall_state){
 		  // Update new hall_state value
@@ -165,6 +223,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 		  // Update flag for new Hall interrupt
 		  new_Hall_meas_flag = 1;
 		  new_Hall_meas_angle = M_PI/3.0f *  hall_to_sector(hall_state_new);
+		  new_Hall_meas_speed = M_PI/(3.0f* dtGPIO);
 	  }
   }
 

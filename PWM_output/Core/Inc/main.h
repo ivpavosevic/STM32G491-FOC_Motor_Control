@@ -102,6 +102,14 @@ void Error_Handler(void);
 #define L2_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
+typedef struct{
+	float Ud;
+	float Uq;
+	float rotor_freq;
+	float Id_ref;
+	float Iq_ref;
+	float theta;
+} input_params;
 
 /* USER CODE END Private defines */
 

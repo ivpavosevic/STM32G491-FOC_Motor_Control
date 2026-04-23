@@ -2,13 +2,12 @@
 ../Core/Src/cordic_sin.c:85:23:radians_to_q31	16	static
 ../Core/Src/cordic_sin.c:91:21:q31_to_float	16	static
 ../Core/Src/cordic_sin.c:95:21:degree_to_radians	16	static
-../Core/Src/cordic_sin.c:103:23:q31_angle_to_deg	48	static
 ../Core/Src/cordic_sin.c:117:12:cordic_calculate	48	static
 ../Core/Src/cordic_sin.c:138:6:CORDIC_Change_Constant_Angle	24	static
 ../Core/Src/cordic_sin.c:174:6:CORDIC_Sin_SetFrequency	24	static
 ../Core/Src/cordic_sin.c:193:6:calculateInvClarke	32	static
 ../Core/Src/cordic_sin.c:200:6:calculateClarke	32	static
 ../Core/Src/cordic_sin.c:206:6:calculatePark	48	static
-../Core/Src/cordic_sin.c:218:6:calculateInvPark	40	static
-../Core/Src/cordic_sin.c:233:9:CORDIC_Get_Angle	8	static
-../Core/Src/cordic_sin.c:238:5:CORDIC_Sin_Get3Phase	32	static
+../Core/Src/cordic_sin.c:218:6:calculateInvPark	48	static
+../Core/Src/cordic_sin.c:236:7:CORDIC_Get_Angle	16	static
+../Core/Src/cordic_sin.c:245:5:CORDIC_Sin_Get3Phase	32	static

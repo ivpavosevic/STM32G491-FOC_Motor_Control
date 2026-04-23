@@ -16,6 +16,8 @@
 #define VREF_MV 3300.0f
 #define VREF_V 3.3f
 
+extern input_params ip;
+
 typedef struct {
     uint16_t ia_raw;
     uint16_t ib_raw;
@@ -36,6 +38,8 @@ uint8_t ADC1_PopCurrentsValues(adc_curr_raw_t *out);
 float ADC_ConvRawCurrValue(uint16_t raw_v, uint8_t phase);
 
 void ADC_StartCalibration(ADC_HandleTypeDef *hadc);
+
+float convert_ticks_to_s(uint32_t delta_time);
 
 float get_Id(void);
 float get_Iq(void);

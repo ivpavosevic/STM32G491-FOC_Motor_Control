@@ -1,7 +1,7 @@
 /*
  * cordic_sin.c
  *
- * Purpose: Init of CORDIC, generation of sin/cos/atan2 values
+ * Purpose: Init of CORDIC, generation of sin/cos values
  *
  *  Created on: Jan 29, 2026
  *      Author: ivanp
@@ -215,13 +215,16 @@ void calculatePark(float Ialpha, float Ibeta, float theta, float *Iq, float *Id)
 	return;
 }
 
-void calculateInvPark(float *Ualpha, float *Ubeta, float Uq, float Ud){
-	float sin_t = 0, cos_t = 0;
+void calculateInvPark(float *Ualpha, float *Ubeta, float theta, float Uq, float Ud){
+	float sin_t_inv = 0, cos_t_inv = 0;
 
-	int result = cordic_calculate((int32_t)s_angle_uq31, &sin_t, &cos_t);
+	int result_inv = cordic_calculate((int32_t)s_angle_uq31, &sin_t_inv, &cos_t_inv);
+//	int32_t theta_q31_inv = radians_to_q31(theta);
+//
+//	int result_inv = cordic_calculate(theta_q31_inv, &sin_t_inv, &cos_t_inv);
 
-	*Ualpha = Ud * cos_t - Uq * sin_t;
-	*Ubeta  = Ud * sin_t + Uq * cos_t;
+	*Ualpha = Ud * cos_t_inv - Uq * sin_t_inv;
+	*Ubeta  = Ud * sin_t_inv + Uq * cos_t_inv;
 
 	//s_angle_uq31 = 0;
 	s_angle_uq31 += s_delta_uq31;
@@ -230,8 +233,12 @@ void calculateInvPark(float *Ualpha, float *Ubeta, float Uq, float Ud){
 
 
 
-int32_t CORDIC_Get_Angle(void){
-	return q31_angle_to_deg(s_angle_uq31);
+float CORDIC_Get_Angle(void){
+	float angle_fb =  q31_to_float(s_angle_uq31);
+	if(angle_fb < 0.0f){
+		angle_fb += M_PI;
+	}
+	return angle_fb;
 }
 
 

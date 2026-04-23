@@ -45,7 +45,7 @@ void calculateClarke(float Ia, float Ib, float Ic, float *Ialpha, float *Ibeta);
 
 void calculatePark(float Ialpha, float Ibeta, float theta, float *Iq, float *Id);
 
-void calculateInvPark(float *Ualpha, float *Ubeta, float Uq, float Ud);
+void calculateInvPark(float *Ualpha, float *Ubeta, float theta, float Uq, float Ud);
 
 void CORDIC_Change_Constant_Angle(uint8_t angle_flag);
 
@@ -53,7 +53,7 @@ int CORDIC_Sin_Init(CORDIC_HandleTypeDef *hcordic_ptr, float pwm_freq_hz);
 
 void CORDIC_Sin_SetFrequency(float freq_hz);
 
-int32_t CORDIC_Get_Angle(void);
+float CORDIC_Get_Angle(void);
 
 int CORDIC_Sin_Get3Phase(float *sin_a, float *sin_b, float *sin_c);
 
