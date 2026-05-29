@@ -15,57 +15,64 @@
 #include "ang_est_vectors.h"
 
 
-/* Shared between ISR and main context */
+/* Variables used for current reading from ADC */
 static volatile uint8_t  s_adc_new  = 0;
 static volatile uint8_t  s_adc_calibrated  = 0;
 static volatile adc_curr_raw_t s_raw;
-static foc_i_alfabeta_t s_clarke;
-static foc_i_dq_t s_park;
+static volatile foc_params_clarke s_clarke;
+static volatile foc_params_park s_park;
 
 volatile float current_A;
 volatile float current_B;
 volatile float current_C;
-
 volatile float sum_ABC = 0.0f;
+
+volatile PI_reg_t pi_id;
+volatile PI_reg_t pi_iq;
+volatile PI_reg_t pi_omega;
+volatile FOC_user_params fp;
+volatile float id_err = 0.0f;
+volatile float iq_err = 0.0f;
+volatile float omega_err = 0.0f;
+
+static float theta_adc = 0.0f;
+static float theta_raw = 0.0f;
+static float theta_measured = 0.0f;
 
 static uint32_t dwtADC1stTime = 0;
 static uint32_t dwtADC2ndTime = 0;
 static uint32_t dwtTotalTime = 0;
 
-static float i_alfa1;
-static float i_alfa2;
-static float i_beta1;
-static float i_beta2;
-static float Im, Re;
-
-
 static volatile uint16_t offsetA, offsetB, offsetC;
 
-volatile HallKF kf;
-PI_reg_t pi_id;
-PI_reg_t pi_iq;
-input_params ip;
-float id_err;
-float iq_err;
+static HallKF_data hkf;
+static CurrVectorKF_data cvkf;
+volatile float d_omega;
+static float dt = 0.0f;
+static volatile uint32_t counter_cycle = 0;
 
-static float dt = 0;
-float theta;
-static float theta_delta = 0.0f;
-static float theta_measured = 0.0f;
+static int32_t overrun_count = 0;
 
-typedef enum { STATE_OPENLOOP, STATE_CLOSEDLOOP } drive_state_t;
-static drive_state_t drive_state = STATE_OPENLOOP;
+static int32_t adc_isr_count = 0;
+volatile float adc_iq_sum = 0.0f;
+volatile float adc_id_sum = 0.0f;
+
+volatile uint32_t steps_since_hall = 0;
+
+
 
 float conv_const = (VREF_V) / (ADC_MAX_VALUE * GAIN * R_SHUNT);
 
 void ADC_Init(ADC_HandleTypeDef *hadc, float theta_0){
 	HAL_ADCEx_InjectedStart_IT(hadc);
-	HallKF_Init(&kf, theta_0);
-	theta = theta_0;
+	HallKF_Init(&hkf, theta_0);
+	CurrVectorKF_Init(&cvkf, theta_0);
+	d_omega = 0.0f;
 	// Setup of PI parameters for Id and Iq
 	PI_Init_d(&pi_id);
 	PI_Init_q(&pi_iq);
-	Setup_Init(&ip);
+	PI_Init_omega(&pi_omega);
+	Setup_Init(&fp, theta_0);
 }
 
 /* Used for debugging purposes to identify duration of interrupt */
@@ -85,10 +92,25 @@ float convert_ticks_to_s(uint32_t delta_time){
 }
 
 
+static inline float atan_approx_core(float x) {
+    float x2 = x * x;
+    return x * (0.99997726f + x2 * (-0.33262347f + x2 * (0.19354346f +
+           x2 * (-0.11643287f + x2 * (0.05265332f + x2 * -0.01172120f)))));
+}
+
+static inline float atan2_fast(float y, float x) {
+    int swap = __builtin_fabsf(x) < __builtin_fabsf(y);
+    float input = (swap ? x : y) / (swap ? y : x);
+    float result = atan_approx_core(input);
+    if (swap) result = (input >= 0.0f ? M_PI_2 : -M_PI_2) - result;
+    if (x < 0.0f) result = (y >= 0.0f ? M_PI : -M_PI) + result;
+    return result;
+}
+
 /* Converts raw value of currents Ia, Ib and Ic */
 float ADC_ConvRawCurrValue(uint16_t raw_v, uint8_t phase){
 	// Convert voltage reading to current with R_shunt = 0.001 Ohm
-	int16_t raw_v_offs;
+	int16_t raw_v_offs = 0;
 	if(phase == 1){
 		raw_v_offs = raw_v - offsetA;
 	} else if(phase == 2) {
@@ -136,115 +158,126 @@ void ADC_StartCalibration(ADC_HandleTypeDef *hadc){
 	offsetC = sumC / ADC_CAL_SIZE;
 
 	s_adc_calibrated = 1;
+
 }
 
+/*
+ *
+ * Updating voltage levels on three-phase gates
+ *
+ * */
+void Get3PhaseV_ABC(float *Ua, float *Ub, float *Uc) {
+	*Ua = s_clarke.Ua;
+	*Ub = s_clarke.Ub;
+	*Uc = s_clarke.Uc;
+}
 
 /* Interrupt for reading the ADC values and perforimg Clarke and Parke transforms (every 40 us)*/
 void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
 
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_SET); // for debugging purpose
 	if (hadc->Instance != ADC1)
-        return;
+	return;
+	/* Current sensing - pin PA0 */
+	s_raw.ia_raw = (uint16_t)HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_1);
 
-    /* Current sensing - pin PA0 */
-    s_raw.ia_raw = (uint16_t)HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_1);
+	/* Current sensing - pin PC0 */
+	s_raw.ib_raw = (uint16_t)HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_2);
 
-    /* Current sensing - pin PC0 */
-    s_raw.ib_raw = (uint16_t)HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_2);
+	/* Current sensing - pin PC1 */
+	s_raw.ic_raw = (uint16_t)HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_3);
 
-    /* Current sensing - pin PC1 */
-    s_raw.ic_raw = (uint16_t)HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_3);
+	if(s_adc_calibrated == 1){
+	// Transform raw to readable data
+	current_A = -ADC_ConvRawCurrValue(s_raw.ia_raw, 1);
+	current_B = -ADC_ConvRawCurrValue(s_raw.ib_raw, 2);
+	current_C = -ADC_ConvRawCurrValue(s_raw.ic_raw, 3);
 
-    if(s_adc_calibrated == 1){
-      // Transform raw to readable data
-        current_A = ADC_ConvRawCurrValue(s_raw.ia_raw, 1);
-        current_B = ADC_ConvRawCurrValue(s_raw.ib_raw, 2);
-        current_C = ADC_ConvRawCurrValue(s_raw.ic_raw, 3);
+	//        sum_ABC = current_A + current_B + current_C;
 
-        sum_ABC = current_A + current_B + current_C;
+	// Perform Clarke transform
+	calculateClarke(current_A, current_B, current_C, &s_clarke.i_alfa, &s_clarke.i_beta);
 
-      // Perform Clarke transform
-        calculateClarke(current_A, current_B, current_C, &s_clarke.i_alfa, &s_clarke.i_beta);
+	/* Checking duration between interrupts */
+	dwtADC2ndTime = DWT->CYCCNT; // Get the cycle value after we had executed our code
+	dwtTotalTime = dwtADC2ndTime - dwtADC1stTime; // Calculate how many cycles have passed
+	dwtADC1stTime = DWT->CYCCNT;
+	dt = convert_ticks_to_s(dwtTotalTime);
+	d_omega = convert_ticks_to_us(dwtTotalTime);
 
-        /* Checking duration between interrupts */
-        dwtADC2ndTime = DWT->CYCCNT; // Get the cycle value after we had executed our code
-        dwtTotalTime = dwtADC2ndTime - dwtADC1stTime; // Calculate how many cycles have passed
-    	dwtADC1stTime = DWT->CYCCNT;
-    	dt = convert_ticks_to_us(dwtTotalTime);
-
-       //1st step: Kalman prediction - done every ADC interrupt
-        KF_Predict(&kf, dt);
-
-       // 2nd step: Kalman update - done every time new Hall data appears
-        if(new_Hall_meas_flag == 1){
-        	theta_measured = (float) new_Hall_meas_angle;
-        	KF_Update(&kf, theta_measured);
-        	new_Hall_meas_flag = 0;
-        }
-
-        if(drive_state == STATE_OPENLOOP){
-            ip.theta = CORDIC_Get_Angle();
-            ip.Ud = 0.0f;
-            ip.Uq = 1.0f;
-            if(kf.omega > 5.0f) drive_state = STATE_CLOSEDLOOP;  // threshold in rad/s
-        } else {
-            ip.theta = kf.theta;
-            id_err = ip.Id_ref - s_park.i_d;
-            iq_err = ip.Iq_ref - s_park.i_q;
-            ip.Ud = Control_PI_reg(&pi_id, id_err);
-            ip.Uq = Control_PI_reg(&pi_iq, iq_err);
-        }
+	theta_raw = atan2_fast(s_clarke.i_beta, s_clarke.i_alfa);
+	theta_adc = (theta_raw < 0.0f) ? theta_raw + 2.0f * M_PI : theta_raw;
+	// wrap to keep within [0, 2*PI]
+	if (theta_adc >  2*M_PI) theta_adc -= 2.0f * M_PI;
+	if (theta_adc <  0.0f) theta_adc += 2.0f * M_PI;
 
 
-        calculatePark(s_clarke.i_alfa, s_clarke.i_beta, ip.theta, &s_park.i_q, &s_park.i_d);
+	if(system_on_off == 1){
+		if (fp.drive_state == STATE_CLOSEDLOOP){
+			//1st step: Kalman prediction - done every ADC interrupt
+			HKF_Predict(&hkf, dt);
+			CVKF_Predict(&cvkf, hkf.omega, dt);
 
-        // Testing code
-        // theta taken from Cordic -- test purpose
-//        theta = CORDIC_Get_Angle();
-//        if (theta >  2*M_PI) theta -= 2.0f * M_PI;
-//        if (theta <  0.0f) theta += 2.0f * M_PI;
-
-
-        // PI regulation
-//        id_err = ip.Id_ref - s_park.i_d;
-//        iq_err = ip.Iq_ref - s_park.i_q;
-//
-//        ip.Ud = Control_PI_reg(&pi_id, id_err);
-//        ip.Uq = Control_PId_reg(&pi_iq, iq_err);
-
-
-//        calculatePark(s_clarke.i_alfa, s_clarke.i_beta, theta, &s_park.i_q, &s_park.i_d);
-
-
-      // theta calculated from current vector
-//        i_alfa1 = i_alfa2;
-//        i_beta1 = i_beta2;
-//        i_alfa2 = s_clarke.i_alfa;
-//        i_beta2 = s_clarke.i_beta;
-//
-//        Im = i_alfa1 * i_beta2 - i_beta1 * i_alfa2;
-//        Re = i_alfa1 * i_alfa2 + i_beta1 * i_beta2;
-//        theta_delta = atan2f(Im, Re);
-//        theta -= theta_delta;
-//
-//		if(new_Hall_meas_flag == 1){
-//			theta = (float) new_Hall_meas_angle;
-//			new_Hall_meas_flag = 0;
-//		}
-//
-//        // wrap to keep within [0, 2*PI]
-//        if (theta >  2*M_PI) theta -= 2.0f * M_PI;
-//        if (theta <  0.0f) theta += 2.0f * M_PI;
+			// 2nd step: Kalman update - done every time new Hall data appears
+			if(new_Hall_meas_flag == 1){
+				theta_measured = (float) new_Hall_meas_angle;
+				HKF_Update(&hkf, theta_measured);
+				CVKF_Update(&cvkf, theta_adc);
+				new_Hall_meas_flag = 0;
+			}
+			fp.theta = hkf.theta;
+		} else if(fp.drive_state == STATE_OPENLOOP){
+			counter_cycle++;
+			if(counter_cycle >= 40000){
+				pi_iq.sum_err = fp.Uq / (2.0f*pi_iq.Ki);
+				fp.drive_state = STATE_CLOSEDLOOP;
+				counter_cycle = 0;// threshold in rad/s
+			}
+		}
 
 
-    }
+	}
 
-    s_adc_new  = 1;
+	//		adc_isr_count++;
+	//		adc_id_sum += s_park.i_d;
+	//		adc_iq_sum += s_park.i_q;
 
 
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET); // for debugging purpose
 
+	CORDIC_CalculateSinCos(fp.theta, &s_park.sin_t, &s_park.cos_t);
+
+	calculatePark(s_clarke.i_alfa, s_clarke.i_beta, fp.theta, &s_park.i_q, &s_park.i_d, s_park.sin_t, s_park.cos_t);
+
+	// PI regulation
+	if(fp.drive_state == STATE_CLOSEDLOOP){
+		id_err = fp.Id_ref - s_park.i_d;
+		iq_err = fp.Iq_ref - s_park.i_q;
+		fp.Ud = Control_PI_reg(&pi_id, id_err, dt);
+		fp.Uq = Control_PI_reg(&pi_iq, iq_err, dt);
+		if(counter_cycle++ >= 10){
+			omega_err = fp.omega_ref - hkf.omega;
+//			fp.Iq_ref = Control_PI_reg(&pi_omega, omega_err, dt * 10);
+			//fp.Iq_ref = 0.5f;
+			counter_cycle = 0;
+		}
+
+	}
+
+	// Inverse Park
+	calculateInvPark(&s_park.Ualfa, &s_park.Ubeta, fp.theta, fp.Uq, fp.Ud, s_park.sin_t, s_park.cos_t, fp.drive_state);
+
+	// Inverse Clarke
+	calculateInvClarke(&s_clarke.Ua, &s_clarke.Ub, &s_clarke.Uc, s_park.Ualfa, s_park.Ubeta);
+
+	}
+
+
+	s_adc_new  = 1;
+	if (NVIC_GetPendingIRQ(ADC1_2_IRQn)) {
+	    overrun_count++;
+	    __HAL_ADC_CLEAR_FLAG(hadc, ADC_FLAG_JEOS);   // clear peripheral flag
+	    NVIC_ClearPendingIRQ(ADC1_2_IRQn);            // then clear NVIC pending
+	}
 }
 
 // Kalman filter legacy code:
@@ -265,6 +298,7 @@ float get_Ialfa(void){
 float get_Ibeta(void){
 	return s_clarke.i_beta;
 }
+
 
 
 

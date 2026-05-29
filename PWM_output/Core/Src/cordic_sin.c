@@ -11,21 +11,12 @@
 #include "cordic_sin.h"
 #include <stddef.h>
 #include <stdint.h>
-#include <math.h>
 
 /* ============ Private defines ============ */
 
-/* Q31 format: full scale = 2^31 */
-#define Q31_SCALE 2147483648.0f
 
 
-#define SQRT3 1.73205080757f
 
-
-/* Pi constant */
-#ifndef M_PI
-#define M_PI 3.14159265358979323846f
-#endif
 
 /*
  * Angle mapping used here:
@@ -49,6 +40,7 @@ static CORDIC_HandleTypeDef *s_hcordic = NULL;
 
 /* Current angle accumulator in unsigned Q31 domain (wraps mod 2^32) */
 static uint32_t s_angle_uq31 = 0;
+static float s_angle_float = 0.0f;
 
 /* Angle increment per PWM period in unsigned Q31 domain */
 static uint32_t s_delta_uq31 = 0;
@@ -61,6 +53,17 @@ static float s_elec_freq_hz = 1.0f;
 
 static volatile uint32_t counter = 0;
 
+static volatile float angle_fb = 0.0f;
+
+static float sin_t_inv;
+static float cos_t_inv;
+static volatile int32_t change_angle = 0;
+static volatile int32_t cordic_angle = 0;
+
+
+
+/* Variables for inverse Park transform */
+int result_invp = 0;
 /* ============ Private functions ============ */
 
 int CORDIC_Sin_Init(CORDIC_HandleTypeDef *hcordic_ptr, float pwm_freq_hz) {
@@ -73,6 +76,8 @@ int CORDIC_Sin_Init(CORDIC_HandleTypeDef *hcordic_ptr, float pwm_freq_hz) {
   s_angle_uq31 = 0;
   s_delta_uq31 = 0;
   s_elec_freq_hz = 0.0f;
+  sin_t_inv = 0.0f;
+  cos_t_inv = 0.0f;
 
   return CORDIC_SIN_OK;
 }
@@ -88,9 +93,18 @@ static inline int32_t radians_to_q31(float angle_rad) {
 /**
  * @brief Convert Q31 to float (-1.0 to 1.0)
  */
+
 static inline float q31_to_float(int32_t q31_val) {
   return (float)q31_val / Q31_SCALE;
 }
+
+/**
+ * @brief Convert Q31 to radians (-PI,PI)
+ */
+static inline float q31_to_radians(int32_t q31_val) {
+  return (float)q31_val / Q31_SCALE * M_PI;
+}
+
 
 static inline float degree_to_radians(int32_t angle_deg) {
   return ((angle_deg * M_PI) / 180.0);
@@ -106,6 +120,13 @@ static inline int32_t q31_angle_to_deg(int32_t angle_q31)
     int64_t tmp = (int64_t)angle_q31 * 180;
     return (int32_t)(tmp >> 31);
 }
+
+static inline float wrap_posneg_pi(float a) {
+  while (a >  (float)M_PI) a -= TWO_PI;
+  while (a < -(float)M_PI) a += TWO_PI;
+  return a;
+}
+
 
 /**
  * @brief Calculate sine using CORDIC hardware (blocking/polling)
@@ -203,45 +224,83 @@ void calculateClarke(float Ia, float Ib, float Ic, float *Ialpha, float *Ibeta){
 	return;
 }
 
-void calculatePark(float Ialpha, float Ibeta, float theta, float *Iq, float *Id){
-	float sin_t, cos_t;
-	// Convert theta from radins to Q31 format
-	int32_t theta_q31 = radians_to_q31(theta);
-
-	int result = cordic_calculate(theta_q31, &sin_t, &cos_t);
-
+void calculatePark(float Ialpha, float Ibeta, float theta, float *Iq, float *Id, float sin_t, float cos_t){
 	*Id =  Ialpha * cos_t + Ibeta * sin_t;
 	*Iq = -Ialpha * sin_t + Ibeta * cos_t;
 	return;
 }
 
-void calculateInvPark(float *Ualpha, float *Ubeta, float theta, float Uq, float Ud){
-	float sin_t_inv = 0, cos_t_inv = 0;
+void calculateInvPark(float *Ualpha, float *Ubeta, float theta, float Uq, float Ud, float sin_t, float cos_t, drive_state_t drive_state){
 
-	int result_inv = cordic_calculate((int32_t)s_angle_uq31, &sin_t_inv, &cos_t_inv);
-//	int32_t theta_q31_inv = radians_to_q31(theta);
+	*Ualpha = Ud * cos_t - Uq * sin_t;
+	*Ubeta  = Ud * sin_t + Uq * cos_t;
+
+//	if(drive_state == STATE_CLOSEDLOOP){
+//		*Ualpha = Ud * cos_t - Uq * sin_t;
+//		*Ubeta  = Ud * sin_t + Uq * cos_t;
 //
-//	int result_inv = cordic_calculate(theta_q31_inv, &sin_t_inv, &cos_t_inv);
+//	} else if(drive_state == STATE_OPENLOOP){
+//		float sin_t_OL, cost_t_OL;
+//		cordic_angle = theta;
+//		cordic_angle = (int32_t) s_angle_uq31;
+//		cordic_calculate(cordic_angle, &sin_t_OL, &cost_t_OL);
+//		*Ualpha = Ud * cost_t_OL - Uq * sin_t_OL;
+//		*Ubeta  = Ud * sin_t_OL + Uq * cost_t_OL;
+//
+//	}
 
-	*Ualpha = Ud * cos_t_inv - Uq * sin_t_inv;
-	*Ubeta  = Ud * sin_t_inv + Uq * cos_t_inv;
-
-	//s_angle_uq31 = 0;
-	s_angle_uq31 += s_delta_uq31;
 	return;
 }
 
+void CORDIC_CalculateSinCos(float theta, float *sin_t, float *cos_t){
+	float theta_posnegpi;
 
+	theta_posnegpi = wrap_posneg_pi(theta);
+	int32_t theta_q31 = radians_to_q31(theta_posnegpi);
+	cordic_calculate(theta_q31, sin_t, cos_t);
+
+}
+
+void CORDIC_Update_Angle(void){
+	s_angle_uq31 += s_delta_uq31;
+	//CORDIC_Change_Constant_Angle(change_angle);
+	s_angle_float = q31_to_radians(s_angle_uq31);
+}
 
 float CORDIC_Get_Angle(void){
-	float angle_fb =  q31_to_float(s_angle_uq31);
+	angle_fb =  q31_to_radians(s_angle_uq31);
 	if(angle_fb < 0.0f){
-		angle_fb += M_PI;
+		angle_fb += 2.0f * M_PI;
 	}
 	return angle_fb;
 }
 
+float fast_sqrt(float x) {
+    if (x <= 0.0f) return 0.0f;
 
+    float guess = x;
+
+    for (int i = 0; i < 5; i++) {
+        guess = 0.5f * (guess + x / guess);
+    }
+
+    return guess;
+}
+
+
+/*
+ *
+ *
+ *
+ *
+ * LEGACY CODE - not used anymore
+ *
+ *
+ *
+ *
+ *
+ *
+ * */
 int CORDIC_Sin_Get3Phase(float *sin_a, float *sin_b, float *sin_c) {
   int result;
 

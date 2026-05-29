@@ -1,6 +1,5 @@
-../Core/Src/uart.c:20:13:UART_Start_RX_IT	8	static
-../Core/Src/uart.c:28:6:UART_Init	16	static
+../Core/Src/uart.c:28:6:UART_Init	4	static
 ../Core/Src/uart.c:37:6:UART_GetLine	16	static,ignoring_inline_asm
-../Core/Src/uart.c:53:6:HAL_UART_RxCpltCallback	24	static
-../Core/Src/uart.c:72:9:UART_IsLineReady	4	static
-../Core/Src/uart.c:78:6:UART_Logger	48	static
+../Core/Src/uart.c:53:6:HAL_UART_RxCpltCallback	4	static
+../Core/Src/uart.c:72:9:UART_IsLineReady	0	static
+../Core/Src/uart.c:78:6:UART_Logger	32	static

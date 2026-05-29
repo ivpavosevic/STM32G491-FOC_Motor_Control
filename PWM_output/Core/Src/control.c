@@ -14,7 +14,6 @@
  *      Author: ivanp
  */
 
-#include "adc.h"
 #include "pwm.h"
 #include "uart.h"
 #include "cordic_sin.h"
@@ -34,22 +33,23 @@ static volatile uint8_t print_flag = 0;
 static UART_HandleTypeDef *s_huart = NULL;
 static volatile uint32_t pwm_duty = 0;
 
-
 static uint32_t array_states[2*TEST_SIZE];
-
-static foc_u_alfabeta_t control_alfabeta;
 
 static uint32_t dwtGPIO1stTime = 0;
 static uint32_t dwtGPIO2ndTime = 0;
 static uint32_t dwtGPIOTotalTime = 0;
 static float dtGPIO = 0;
 
-
 volatile uint8_t new_Hall_meas_flag = 0;
 
 volatile float new_Hall_meas_angle = 0.0f; // in radians
 
-volatile float new_Hall_meas_speed = 0.0f;
+volatile uint8_t system_on_off = 0;
+
+static volatile float freq_update = 10.0f;
+
+static volatile uint32_t hall_state_new;
+static volatile uint32_t hall_angle_new;
 
 /*
  * Initialization for Control mechanism - setting up local variables and default values
@@ -75,36 +75,48 @@ void Control_Init(TIM_HandleTypeDef *htim_pwm, uint32_t pwm_channel,
   }
 }
 
-void Setup_Init(input_params *ip){
-	// Set Ud and Uq before start
-	ip->Uq = 1.0f; // 1 means full bus voltage defined by modulation index in PWM ISR (pwm.c)
-	ip->Ud = 0.0f;
-	ip->rotor_freq = 0.0f;
-	ip->Id_ref = 0.0f;
-	ip->Iq_ref = 0.1f;
-	ip->theta = 0.0f;
+void Setup_Init(FOC_user_params *fp, float theta_0){
+	fp->Uq = 1.0f; // 1 means full bus voltage defined by modulation index in PWM ISR (pwm.c)
+	fp->Ud = 0.0f;
+	fp->rotor_freq = 0.0f;
+	fp->Id_ref = 0.0f;
+	fp->Iq_ref = 1.5f;
+	fp->omega_ref = 62.83f;
+	fp->theta = theta_0;
+	fp->drive_state = STATE_OPENLOOP;
+
 }
 
 void PI_Init_d(PI_reg_t *pi_id){
+	pi_id->Ki = 5.0f;
 	pi_id->Kp = 0.5f;
-	pi_id->Ki = 25.0f;
 	pi_id->sum_err = 0.0f;
 	pi_id->sum_err_limit = 0.3f;
-	pi_id->out_min = -0.3f;
-	pi_id->out_max = 0.3f;
-	pi_id->dt = 0.0002f;
+	pi_id->out_min = -3.0f;
+	pi_id->out_max = 3.0f;
+	pi_id->dt = 0.0f;
 }
 
 void PI_Init_q(PI_reg_t *pi_iq){
+	pi_iq->Ki = 5.0f;
 	pi_iq->Kp = 0.5f;
-	pi_iq->Ki = 25.0f;
 	pi_iq->sum_err = 0.0f;
-	pi_iq->sum_err_limit = 0.5f;
-	pi_iq->out_min = -1.0f;
-	pi_iq->out_max = 1.0f;
-	pi_iq->dt = 0.0002f;
+	pi_iq->sum_err_limit = 0.3f;
+	pi_iq->out_min = -3.0f;
+	pi_iq->out_max = 3.0f;
+	pi_iq->dt = 0.0f;
 }
 
+
+void PI_Init_omega(PI_reg_t *pi_omega){
+	pi_omega->Ki = 10.0f;
+	pi_omega->Kp = 3.0f;
+	pi_omega->sum_err = 0.0f;
+	pi_omega->sum_err_limit = 0.5f;
+	pi_omega->out_min = -3.0f;
+	pi_omega->out_max = 3.0f;
+	pi_omega->dt = 0.0f;
+}
 
 
 /**********************
@@ -153,37 +165,32 @@ uint32_t readAngle(void){
 	return (angle_deg >= 0) ? (uint32_t)angle_deg : (uint32_t)(360 + angle_deg);
 }
 
-/*
- *
- * Updating voltage levels on three-phase gates
- *
- * */
-void Control_Set3PhaseV(float *Ua, float *Ub, float *Uc) {
-  float U_alfa, U_beta;
-  float Uq = ip.Uq;
-  float Ud = ip.Ud;
 
-  // Calculate first Inverse Park transform
-  calculateInvPark(&U_alfa, &U_beta, ip.theta, Uq, Ud);
 
-  //Calculate Inverse Clarke
-  calculateInvClarke(Ua, Ub, Uc, U_alfa, U_beta);
+float Control_PI_reg(PI_reg_t *pi_x, float err, float dt_s){
+	float U_x;
 
-}
+	    pi_x->sum_err += err * dt_s;
 
-float Control_PI_reg(PI_reg_t *pi_x, float err){
+	    // Clamp integrator (standard anti-windup)
+	    if(pi_x->sum_err > pi_x->sum_err_limit)
+	        pi_x->sum_err = pi_x->sum_err_limit;
+	    if(pi_x->sum_err < -pi_x->sum_err_limit)
+	        pi_x->sum_err = -pi_x->sum_err_limit;
 
-	//Accumulated error over time
-	pi_x->sum_err += err * pi_x->dt;
+	    U_x = pi_x->Kp * err + pi_x->Ki * pi_x->sum_err;
 
-	if(pi_x->sum_err > pi_x->sum_err_limit) pi_x->sum_err = pi_x->sum_err_limit;
-	if(pi_x->sum_err < -pi_x->sum_err_limit) pi_x->sum_err = -pi_x->sum_err_limit;
-
-	//Regulated value of voltages
-	float U_x = pi_x->Kp * err + pi_x->Ki * pi_x->sum_err;
-	if(U_x > pi_x->out_max) return pi_x->out_max;
-	if(U_x < pi_x->out_min) return pi_x->out_min;
-	return U_x;
+	    if(U_x > pi_x->out_max){
+	    	U_x = pi_x->out_max;
+	    	pi_x->sum_err += err;
+	    	return U_x;
+	    }
+	    if(U_x < pi_x->out_min){
+	    	U_x = pi_x->out_min;
+	    	pi_x->sum_err -= err;
+	    	return U_x;
+	    }
+	    return U_x;
 }
 
 /*
@@ -206,24 +213,33 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_6);  // enable
     HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_11); // disable
 
+    if(system_on_off == 0){
+    	system_on_off = 1;
+    } else if (system_on_off == 1){
+    	system_on_off = 0;
+    }
+
+
+
   }/*
   * Interrupt raised every 60°, updates flag for Kalman update step and hall_state
   */
   else if (GPIO_Pin == GPIO_PIN_4 || GPIO_Pin == GPIO_PIN_5 || GPIO_Pin == GPIO_PIN_2){
       /* Checking duration between interrupts */
-      dwtGPIO2ndTime = DWT->CYCCNT; // Get the cycle value after we had executed our code
-      dwtGPIOTotalTime = dwtGPIO2ndTime - dwtGPIO1stTime; // Calculate how many cycles have passed
-      dwtGPIO1stTime = DWT->CYCCNT;
-      dtGPIO = convert_ticks_to_s(dwtGPIOTotalTime);
-	  uint32_t hall_state_new = readHall();
+//      dwtGPIO2ndTime = DWT->CYCCNT; // Get the cycle value after we had executed our code
+//      dwtGPIOTotalTime = dwtGPIO2ndTime - dwtGPIO1stTime; // Calculate how many cycles have passed
+//      dwtGPIO1stTime = DWT->CYCCNT;
+//      dtGPIO = convert_ticks_to_us(dwtGPIOTotalTime);
+	  hall_state_new = readHall();
+	  //hall_angle_new = 60.0f * hall_to_sector(hall_state_new);
 	  if (hall_state_new != hall_state){
 		  // Update new hall_state value
 		  hall_state = hall_state_new;
 
 		  // Update flag for new Hall interrupt
-		  new_Hall_meas_flag = 1;
 		  new_Hall_meas_angle = M_PI/3.0f *  hall_to_sector(hall_state_new);
-		  new_Hall_meas_speed = M_PI/(3.0f* dtGPIO);
+		  new_Hall_meas_flag = 1;
+
 	  }
   }
 

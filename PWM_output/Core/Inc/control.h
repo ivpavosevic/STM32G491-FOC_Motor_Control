@@ -8,10 +8,7 @@
 #ifndef INC_CONTROL_H_
 #define INC_CONTROL_H_
 #include "main.h"
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846f
-#endif
+#include "adc.h"
 
 #define TEST_SIZE 48
 
@@ -25,7 +22,7 @@
 
 extern volatile uint8_t new_Hall_meas_flag;
 extern volatile float new_Hall_meas_angle;
-extern volatile float new_Hall_meas_speed;
+extern volatile uint8_t system_on_off;
 
 typedef struct{
 	float Kp;
@@ -43,15 +40,18 @@ void PI_Init_q(PI_reg_t *pi_iq);
 
 void PI_Init_d(PI_reg_t *pi_id);
 
-void Setup_Init(input_params *ip);
+void PI_Init_omega(PI_reg_t *pi_omega);
 
-float Control_PI_reg(PI_reg_t *pi_x, float err);
+void Setup_Init(FOC_user_params *fp, float theta_0);
+
+float Control_PI_reg(PI_reg_t *pi_x, float err, float dt_s);
 
 void process_line(char *line);
 
 uint32_t readHall(void);
 
 uint32_t readAngle(void);
+
 
 
 #endif /* INC_CONTROL_H_ */

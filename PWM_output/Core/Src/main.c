@@ -119,7 +119,7 @@ int main(void)
   // Initialize CORDIC sine module
   if (CORDIC_Sin_Init(&hcordic, 50000.0f) == CORDIC_SIN_OK) {
     // Set initial motor frequency (Hz) - adjust as needed
-    CORDIC_Sin_SetFrequency(10.0f);
+    CORDIC_Sin_SetFrequency(300.0f);
   }
 
   /* Set disable and enable output pins */
@@ -160,7 +160,7 @@ int main(void)
 
   /* Init of ADC module -> init angle for Kalman filter is reading of the Hall sensors, rough estimation */
   uint32_t hall_state_0 = readHall();
-  float theta_0 = M_PI/3.0f *  hall_to_sector(hall_state_0);
+  float theta_0 = M_PI/3.0f *  hall_to_sector(hall_state_0) + M_PI/6.0f;
   ADC_Init(&hadc1, theta_0);
 
   /* UART Init - Tx and Rx */
@@ -178,6 +178,7 @@ int main(void)
 
   /* Calculate the offsets of ADC for each phase */
   ADC_StartCalibration(&hadc1);
+
 
 
   /* USER CODE END 2 */
@@ -239,7 +240,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
   {
     Error_Handler();
   }

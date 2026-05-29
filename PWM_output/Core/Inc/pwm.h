@@ -9,6 +9,10 @@
 #define INC_PWM_H_
 
 #include "main.h"
+#include "cordic_sin.h"
+#include "control.h"
+#include "uart.h"
+#include "adc.h"
 
 /**
  * @brief Set constant PWM duty cycle (for testing)

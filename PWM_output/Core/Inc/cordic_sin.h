@@ -11,31 +11,22 @@
 #define INC_CORDIC_SIN_H_
 
 #include "main.h"
+#include "adc.h"
 
 /* Return codes */
 #define CORDIC_SIN_OK 0
 #define CORDIC_SIN_ERROR -1
 
-typedef struct {
-    float i_d;
-    float i_q;
-} foc_i_dq_t;
+#define SQRT3 1.73205080757f
+
+#define TWO_PI (2.0f * (float)M_PI)
+/* Q31 format: full scale = 2^31 */
+#define Q31_SCALE 2147483648.0f
 
 
-typedef struct {
-    float u_d;
-    float u_q;
-} foc_u_dq_t;
+#define INV_PI_SCALE 2147483648.0f/3.14159265358979323846f
 
-typedef struct {
-    float i_alfa;
-    float i_beta;
-} foc_i_alfabeta_t;
 
-typedef struct {
-    float u_alfa;
-    float u_beta;
-} foc_u_alfabeta_t;
 
 
 
@@ -43,9 +34,9 @@ void calculateInvClarke(float *Ua, float *Ub, float *Uc, float Ualpha, float Ube
 
 void calculateClarke(float Ia, float Ib, float Ic, float *Ialpha, float *Ibeta);
 
-void calculatePark(float Ialpha, float Ibeta, float theta, float *Iq, float *Id);
+void calculatePark(float Ialpha, float Ibeta, float theta, float *Iq, float *Id, float sin_t, float cos_t);
 
-void calculateInvPark(float *Ualpha, float *Ubeta, float theta, float Uq, float Ud);
+void calculateInvPark(float *Ualpha, float *Ubeta, float theta, float Uq, float Ud, float sin_t, float cos_t, drive_state_t drive_state);
 
 void CORDIC_Change_Constant_Angle(uint8_t angle_flag);
 
@@ -53,9 +44,14 @@ int CORDIC_Sin_Init(CORDIC_HandleTypeDef *hcordic_ptr, float pwm_freq_hz);
 
 void CORDIC_Sin_SetFrequency(float freq_hz);
 
+void CORDIC_CalculateSinCos(float theta, float *sin_t, float *cost_t);
+
+void CORDIC_Update_Angle(void);
+
 float CORDIC_Get_Angle(void);
 
 int CORDIC_Sin_Get3Phase(float *sin_a, float *sin_b, float *sin_c);
 
+float fast_sqrt(float x);
 
 #endif /* INC_CORDIC_SIN_H_ */
