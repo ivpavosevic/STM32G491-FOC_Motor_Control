@@ -8,18 +8,53 @@
 #ifndef INC_CONTROL_H_
 #define INC_CONTROL_H_
 #include "main.h"
+#include "adc.h"
 
 #define TEST_SIZE 48
 
+#define PI_IQ_OUT_MAX 1
+#define PI_IQ_OUT_MIN -1
+#define PI_ID_OUT_MAX 1
+#define PI_ID_OUT_MIN -1
 
+extern volatile uint8_t new_Hall_meas_flag;
+extern volatile float new_Hall_meas_angle;
+extern volatile uint8_t system_on_off;
+extern volatile int8_t last_hall_step;
+extern volatile float HALL_omega_est;
+
+typedef struct{
+	float Kp;
+	float Ki;
+	float sum_err;
+	float sum_err_limit;
+	float out_min;
+	float out_max;
+	float dt;
+} PI_reg_t;
 
 void Control_Init(TIM_HandleTypeDef *htim_pwm, uint32_t pwm_channel, UART_HandleTypeDef *huart);
+
+void PI_Init_q(PI_reg_t *pi_iq);
+
+void PI_Init_d(PI_reg_t *pi_id);
+
+void PI_Init_omega(PI_reg_t *pi_omega);
+
+void Setup_Init(FOC_user_params *fp, float theta_0);
+
+uint8_t hall_to_sector(uint32_t hall_dec);
+uint8_t hall_to_sector2(uint32_t hall_dec);
+
+float Control_PI_reg(PI_reg_t *pi_x, float err, float dt_s);
 
 void process_line(char *line);
 
 uint32_t readHall(void);
 
 uint32_t readAngle(void);
+
+void Drive_ClearFault(void);
 
 
 #endif /* INC_CONTROL_H_ */

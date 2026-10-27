@@ -15,6 +15,6 @@ void UART_Init(UART_HandleTypeDef *huart);
 void UART_GetLine(char *dst, uint32_t max_len);
 uint8_t UART_IsLineReady(void);
 
-
+void UART_Logger();
 
 #endif /* INC_UART_H_ */

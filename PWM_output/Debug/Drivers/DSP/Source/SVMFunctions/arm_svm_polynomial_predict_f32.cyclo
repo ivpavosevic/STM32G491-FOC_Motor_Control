@@ -1,0 +1,2 @@
+../Drivers/DSP/Include/dsp/svm_functions.h:65:27:arm_exponent_f32	2
+../Drivers/DSP/Source/SVMFunctions/arm_svm_polynomial_predict_f32.c:462:6:arm_svm_polynomial_predict_f32	3
