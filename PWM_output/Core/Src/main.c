@@ -73,7 +73,9 @@ static void MX_TIM1_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_CORDIC_Init(void);
 /* USER CODE BEGIN PFP */
+volatile uint32_t reset_flags = 0;   /* read BEFORE clearing */
 
+volatile uint8_t rst_bor, rst_pin, rst_sft, rst_iwdg, rst_wwdg, rst_lpwr = 0;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -117,9 +119,13 @@ int main(void)
   MX_CORDIC_Init();
   /* USER CODE BEGIN 2 */
   // Initialize CORDIC sine module
-  if (CORDIC_Sin_Init(&hcordic, 50000.0f) == CORDIC_SIN_OK) {
+//  if (CORDIC_Init(&hcordic) != CORDIC_SIN_OK) {
+//	  return 0;
+//  }
+
+  if (CORDIC_Init(&hcordic, 25000.0f) == CORDIC_SIN_OK) {
     // Set initial motor frequency (Hz) - adjust as needed
-    CORDIC_Sin_SetFrequency(300.0f);
+    CORDIC_Sin_SetFrequency(3.0f);
   }
 
   /* Set disable and enable output pins */
@@ -155,12 +161,9 @@ int main(void)
   Control_Init(&htim1, TIM_CHANNEL_3, &huart2);
 
 
-  /* Enable Interrupts on TIM1*/
-  HAL_TIM_Base_Start_IT(&htim1);
-
   /* Init of ADC module -> init angle for Kalman filter is reading of the Hall sensors, rough estimation */
   uint32_t hall_state_0 = readHall();
-  float theta_0 = M_PI/3.0f *  hall_to_sector(hall_state_0) + M_PI/6.0f;
+  float theta_0 = M_PI_3 *  hall_to_sector2(hall_state_0) + M_PI_6; // + PI/6 as approx. theta is half way between two sectors
   ADC_Init(&hadc1, theta_0);
 
   /* UART Init - Tx and Rx */
@@ -171,10 +174,14 @@ int main(void)
 
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET); // for debugging purpose
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_RESET); // for debugging purpose
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET); // for debugging purpose
 
   /* Used for debugging purposes to identify duration of interrupt */
   DWT_Init();
+
+
+  /* Enable Interrupts on TIM1*/
+  HAL_TIM_Base_Start_IT(&htim1);
+
 
   /* Calculate the offsets of ADC for each phase */
   ADC_StartCalibration(&hadc1);
@@ -190,8 +197,26 @@ int main(void)
     if (UART_IsLineReady()) {
       char line[RX_LINE_MAX];
       UART_GetLine(line, RX_LINE_MAX);
-      process_line(line);
+//      process_line(line);
     }
+    if (log_done()) {
+        log_dump_uart(&huart2);
+    }
+//    static uint32_t last_tick = 0;
+//    if (HAL_GetTick() - last_tick >= 100) {   /* 5 Hz blink */
+//        last_tick = HAL_GetTick();
+//        HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8);
+//    }
+
+
+    reset_flags = RCC->CSR;   /* read BEFORE clearing */
+
+    rst_bor = (reset_flags & RCC_CSR_BORRSTF)  ? 1 : 0; /* brown-out */
+    rst_pin = (reset_flags & RCC_CSR_PINRSTF)  ? 1 : 0; /* NRST pin  */
+    rst_sft = (reset_flags & RCC_CSR_SFTRSTF)  ? 1 : 0; /* software  */
+    rst_iwdg= (reset_flags & RCC_CSR_IWDGRSTF) ? 1 : 0; /* indep WDG */
+    rst_wwdg= (reset_flags & RCC_CSR_WWDGRSTF) ? 1 : 0; /* window WDG*/
+    rst_lpwr= (reset_flags & RCC_CSR_LPWRRSTF) ? 1 : 0; /* low-power */
 
     /* USER CODE END WHILE */
 
@@ -221,8 +246,8 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV2;
-  RCC_OscInitStruct.PLL.PLLN = 25;
+  RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV4;
+  RCC_OscInitStruct.PLL.PLLN = 75;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
@@ -268,7 +293,7 @@ static void MX_ADC1_Init(void)
   /** Common config
   */
   hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.GainCompensation = 0;
@@ -408,7 +433,7 @@ static void MX_TIM1_Init(void)
   htim1.Instance = TIM1;
   htim1.Init.Prescaler = 0;
   htim1.Init.CounterMode = TIM_COUNTERMODE_CENTERALIGNED3;
-  htim1.Init.Period = 1999;
+  htim1.Init.Period = 2999;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
@@ -577,9 +602,6 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, Test_pin_Pin|Test_pin2_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
-
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
@@ -593,17 +615,17 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : HALL_A_Pin HALL_B_Pin */
-  GPIO_InitStruct.Pin = HALL_A_Pin|HALL_B_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
   /*Configure GPIO pin : HALL_C_Pin */
   GPIO_InitStruct.Pin = HALL_C_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(HALL_C_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : HALL_B_Pin HALL_A_Pin */
+  GPIO_InitStruct.Pin = HALL_B_Pin|HALL_A_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pins : Test_pin_Pin Test_pin2_Pin */
   GPIO_InitStruct.Pin = Test_pin_Pin|Test_pin2_Pin;
@@ -612,22 +634,9 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PB8 */
-  GPIO_InitStruct.Pin = GPIO_PIN_8;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI2_IRQn, 2, 0);
   HAL_NVIC_EnableIRQ(EXTI2_IRQn);
-
-  HAL_NVIC_SetPriority(EXTI4_IRQn, 2, 0);
-  HAL_NVIC_EnableIRQ(EXTI4_IRQn);
-
-  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 2, 0);
-  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 2, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);

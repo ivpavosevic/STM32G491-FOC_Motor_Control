@@ -17,16 +17,45 @@
 #define VREF_MV 2900.0f
 #define VREF_V 2.9f
 
+#define K_STANDSTILL 6.0f * 1e3
+#define T_INIT_WAIT 15000u // 15000 ticks * 40 us = 600ms
+#define IQ_SUM_ERR_INIT 0.1f
+
+#define LOG_SAMPLES   1750        // 2000 × 40 µs = 80 ms at full rate
+#define LOG_DECIMATE  100           // log every Nth cycle (raise to widen the window)
+
+#define OVERCURRENT_LIMIT_A   4.0f
+#define OVERCCURENT_MIN_SAMPLES 3
+extern volatile uint8_t overcurrent_fault;
+
+typedef struct {
+    float theta_est;     // hkf.theta
+    float omega;         // hkf.omega
+    float omega_e;    // hkf.last_innovation
+    float i_q;           // s_park.i_q
+    float d_omega;           // s_park.i_d
+    float u_q;           // fp.Uq
+    float iq_ref;           // fp.Ud
+    float hall_angle;    // new_Hall_meas_angle
+} log_sample_t;          // 8 floats = 32 B/sample
+
+
 typedef struct {
     uint16_t ia_raw;
     uint16_t ib_raw;
     uint16_t ic_raw;
 } adc_curr_raw_t;
 
-typedef enum{
-	STATE_OPENLOOP,
-	STATE_CLOSEDLOOP
+typedef enum {
+	STATE_INIT,
+	STATE_CLOSEDLOOP,
+	STATE_CALIBRATE
 } drive_state_t;
+
+typedef enum {
+	SYSTEM_ON,
+	SYSTEM_OFF
+} system_state_t;
 
 typedef struct{
 	float Ud;
@@ -38,7 +67,6 @@ typedef struct{
 	float theta;
 	drive_state_t drive_state;
 } FOC_user_params;
-
 typedef struct {
     float Ua;
     float Ub;
@@ -55,6 +83,12 @@ typedef struct {
 	float sin_t;
 	float cos_t;
 } foc_params_park;
+
+
+
+void log_arm(void);
+uint8_t log_done(void);
+void log_dump_uart(UART_HandleTypeDef *huart);
 
 /*Use privately the pointer for hadc*/
 void ADC_Init(ADC_HandleTypeDef *hadc, float theta_0);

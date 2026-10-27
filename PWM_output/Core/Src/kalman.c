@@ -8,13 +8,24 @@
  *      Author: ivanp
  */
 #include "kalman.h"
+#include <math.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846f
 #endif
-#define TWO_PI (2.0f * (float)M_PI)
+
 #define SECTOR_STEP ( (float)M_PI / 3.0f ) // 60 deg electrical
 #define Q31_SCALE 2147483648.0f
+
+/* ---- containment of the CVKF acceleration boost (bench-derived, step-1 capture) ----
+ * measured: real accel ~330 rad/s^2, fast noise ~±75, once-per-mech-rev spikes ~-300 */
+#define BOOST_GAIN      0.3f     // apply 30% of estimated accel; raise once stable
+#define BOOST_DEADBAND  150.0f   // rad/s^2: below this = noise, no boost
+#define BOOST_CLAMP     0.10f    // max |boost| as fraction of |omega| (~6 deg/interval)
+#define T_SINCE_MAX     0.005f   // s: cap extrapolation time (low speed = weak atan2)
+
+#define CVKF_INNOV_MAX  2.9f     // rad: re-seat ONLY within ~0.25 rad of pi (wrap sign ambiguous);
+                                 // below this the innovation direction is valid -> let it track
 
 typedef struct {
   volatile uint16_t dt_ticks;
@@ -33,106 +44,144 @@ static inline float wrap_0_2pi(float a) {
 
 // Wrap difference to [-pi, pi]
 static inline float wrap_pm_pi(float a) {
-  while (a >  (float)M_PI) a -= TWO_PI;
-  while (a < -(float)M_PI) a += TWO_PI;
+  if (a >  (float)M_PI) a -= TWO_PI;
+  if (a < -(float)M_PI) a += TWO_PI;
   return a;
 }
 
-// Map Hall readings to sectors
-uint32_t hall_to_sector(uint32_t hall_dec) {
-  uint8_t sector_out;
-  switch (hall_dec) {
-    case 100:  sector_out = 0; return sector_out; // 101
-    case 101:  sector_out = 1; return sector_out; // 100
-    case 1:  sector_out = 2; return sector_out; // 110
-    case 11:   sector_out = 3; return sector_out; // 010
-    case 10:   sector_out = 4; return sector_out; // 011
-    case 110:    sector_out = 5; return sector_out; // 001
-    default:  ERR_HALL_FAIL;  // invalid (000/111)
-  }
-}
+
 
 void HallKF_Init(HallKF_data *kf, float theta_0) {
   kf->theta = theta_0;
+  kf->theta_init = theta_0;
   kf->omega = 0.0f;
-  kf->p00 = 1.0f;
-  kf->p01 = 0.0f;
-  kf->p11 = 3.0f;
+  kf->p00 = 1.0f; // 0.1
+  kf->p01 = 0.0f; // 0.1
+  kf->p11 = 3.0f; // 10.0
   kf->ts = 0;
 
   // Process noise (start conservative for smooth omega)
-  kf->q_theta = 0.0001f;
-  kf->q_omega = 0.00005f;
+  kf->q_theta = 0.0001f; // working: 0.0001
+  kf->q_omega = 0.01f; // working_ 0.005
 
-  // Hall sector quantization variance: (Δθ)^2/12
-  kf->r_theta = 0.045f;
+  kf->r_theta = 0.1f; // working: 0.1
+  kf->r_omega = 10.0f;
 
   kf->K_theta = 0.0f;
   kf->K_omega = 0.0f;
 
-  kf->theta_off = 0.0f;
+  kf->t_standstill = HKF_STANDSTILL_INIT;
   kf->ticks_since_edge = 0;
   kf->last_innovation = 0.0f;
   kf->inited = 0;
+  kf->last_theta_meas = 0.0f;
+  kf->second_last_theta_meas = 0.0f;
+  kf->last_step = 0;
+  kf->dither_count = 0;
 
   s_ev.valid = 0;
 }
 
 void CurrVectorKF_Init(CurrVectorKF_data *cvkf, float theta_0) {
-  cvkf->theta = theta_0;
-  cvkf->omega = 0.0f;
-  cvkf->p00 = 1.0f;
-  cvkf->p01 = 0.0f;
-  cvkf->p02 = 0.0f;
-  cvkf->p11 = 10.0f;
-  cvkf->p12 = 0.0f;
-  cvkf->p22 = 10.0f;
-  cvkf->ts = 0;
+  cvkf->theta   = theta_0;
+  cvkf->omega   = 0.0f;
+  cvkf->d_omega = 0.0f;   // acceleration
 
-  // Process noise (start conservative for smooth omega)
-  cvkf->q_theta = 0.01f;
-  cvkf->q_omega = 0.001f;
-  cvkf->q_d_omega = 0.001f;
+  /* P: angle known-ish, speed unknown, acceleration very unknown; no cross-corr yet */
+  cvkf->p00 = 0.1f;  cvkf->p01 = 0.0f;  cvkf->p02 = 0.0f;
+                     cvkf->p11 = 10.0f; cvkf->p12 = 0.0f;
+                                        cvkf->p22 = 100.0f;
+  cvkf->ts  = 0.0f;
 
-  cvkf->r_theta = 0.2f;
+  /* Q (diagonal) --- TUNE --- */
+  cvkf->q_theta   = 1e-4f;
+  cvkf->q_omega   = 0.02f;
+  cvkf->q_d_omega = 0.1f;    // accel must build FAST to track 40V ramp w/o theta lag->wrap flip
 
-  cvkf->K_theta = 0.0f;
-  cvkf->K_omega = 0.0f;
+  // atan2 angle variance
+  cvkf->r_atan2 = 0.25f;
+
+  cvkf->K_theta   = 0.0f;
+  cvkf->K_omega   = 0.0f;
   cvkf->K_d_omega = 0.0f;
 
-  cvkf->theta_off = 0.0f;
-  cvkf->ticks_since_edge = 0;
-  cvkf->last_sector = 0;
-  cvkf->inited = 0;
-
-  s_ev.valid = 0;
+  cvkf->last_innovation = 0.0f;
 }
 
 // Prediction step every 40us, part of ADC interrupt
-void HKF_Predict(HallKF_data *hkf, float dt) {
+void HKF_Predict(HallKF_data *hkf, float cvkf_omega, float cvkf_d_omega, float dt) {
 // -------- predict for rotor Kalman -------------------
+	(void)cvkf_omega;   // connection uses only the CVKF acceleration (cvkf_d_omega)
 	hkf->ts = dt;
-	// x^- = A * x
-	hkf->theta = wrap_0_2pi(hkf->theta + hkf->ts * hkf->omega);
-	// omega_hat(k+1) = omega_hat(k)
 
-	// P^- update in scalar form (A = [[1 Ts],[0 1]]) P^- = A*P*A^T + Q
-	float Ts = hkf->ts;
-	float p00 = hkf->p00, p01 = hkf->p01, p11 = hkf->p11;
+    hkf->ticks_since_edge++;
+    if (hkf->ticks_since_edge > hkf->t_standstill) {
+        // No Hall edge for too long
+        hkf->omega = 0.0f;
+        hkf->p01 = 0.0f;
+        hkf->p11 = P11_AT_REST;
+    } else {
+    	float Ts = hkf->ts;
 
-	hkf->p00 = p00 + 2.0f*Ts*p01 + (Ts*Ts)*p11 + hkf->q_theta;
-	hkf->p01 = p01 + Ts*p11;
-	hkf->p11 = p11 + hkf->q_omega;
+    	// ---- CONNECTION: CVKF acceleration extrapolates the Hall speed forward ----
+    	// Between Hall edges hkf->omega is stale (updated only at edges). The CVKF
+    	// acceleration (cvkf_d_omega) lets theta advance at the *predicted* current
+    	// speed, so theta CATCHES UP while accelerating. Contained four ways so the
+    	// boost->commutation->atan2 feedback loop cannot wind up (bench: it did):
+    	//   deadband  - fast noise (~±75 rad/s^2) never acts
+    	//   gain      - only a fraction of the estimated accel is applied
+    	//   t cap     - extrapolation time bounded (low speed = long gaps = weak atan2)
+    	//   clamp     - total authority ~6 deg per Hall interval, far below runaway
+    	float boost = 0.0f;
+    	if (fabsf(cvkf_d_omega) > BOOST_DEADBAND) {
+    		float t_since = (float)hkf->ticks_since_edge * Ts;   // time since last edge
+    		if (t_since > T_SINCE_MAX) t_since = T_SINCE_MAX;
+    		boost = BOOST_GAIN * cvkf_d_omega * t_since;
+    		float lim = BOOST_CLAMP * fabsf(hkf->omega);
+    		if (boost >  lim) boost =  lim;
+    		if (boost < -lim) boost = -lim;
+    	}
+    	float omega_eff = hkf->omega + boost;
 
-	if (hkf->p00 > 2.0f * hkf->r_theta) hkf->p00 = 2.0f * hkf->r_theta;
+    	// x^- = A * x  (angle advances at the extrapolated speed)
+        hkf->theta = wrap_0_2pi(hkf->theta + Ts * omega_eff);
+
+    	// P^- = A*P*A^T + Q  (constant-velocity model on [theta, omega])
+    	float p00 = hkf->p00, p01 = hkf->p01, p11 = hkf->p11;
+    	hkf->p00 = p00 + 2.0f*Ts*p01 + (Ts*Ts)*p11 + hkf->q_theta;
+    	hkf->p01 = p01 + Ts*p11;
+    	hkf->p11 = p11 + hkf->q_omega;
+    }
+
+
+
 
 }
 
 // Update step done when new Hall information is present
-void HKF_Update(HallKF_data *hkf, float theta_meas) {
+void HKF_Update(HallKF_data *hkf, float theta_meas, int8_t step) {
+	hkf->ticks_since_edge = 0; // new edge arrived
+
+    // Direction reversal between consecutive edges = not real rotation
+    if (step != 0 && step == -hkf->last_step) {
+        if (hkf->dither_count < 255) hkf->dither_count++;
+    } else {
+        hkf->dither_count = 0;
+    }
+    hkf->last_step = step;
+
+    if (hkf->dither_count >= 2) {
+        // Bouncing between two adjacent sectors → freeze, don't build speed
+        hkf->omega = 0.0f;
+        hkf->theta = theta_meas;   // just track the measurement
+        hkf->last_innovation = 0.0f;
+        return;                                 // skip the gain update entirely
+    }
+
+
 	// update Kalman gain K = (P*H^T)  / (H * P * H^T + R) => K(2x1 matrix)
-	hkf->K_theta = hkf->p00 / (hkf->p00 +hkf->r_theta);
-	hkf->K_omega = hkf->p01 / (hkf->p00 +hkf->r_theta);
+	hkf->K_theta = hkf->p00 / (hkf->p00 + hkf->r_theta);
+	hkf->K_omega = hkf->p01 / (hkf->p00 + hkf->r_theta);
 
 	// Overwrite estimation of theta and omega x = x + K*(Z - H*x);
 	/* wrapping in -pi,pi range to avoid huge errors when moving from 2pi to 0 */
@@ -146,68 +195,107 @@ void HKF_Update(HallKF_data *hkf, float theta_meas) {
 	hkf->p11 = hkf->p11 - hkf->K_omega * hkf->p01;
 	hkf->p01 = (1-hkf->K_theta) * hkf->p01;
 
+//	float S   = hkf->p11 + hkf->r_omega;             // note: p11, not p00
+//	float K_t = hkf->p01 / S;
+//	float K_w = hkf->p11 / S;
+//	float y_w = omega_meas - hkf->omega;
+//	hkf->theta = wrap_0_2pi(hkf->theta + K_t * y_w);
+//	hkf->omega = hkf->omega + K_w * y_w;
+//	hkf->p00  -= K_t * hkf->p01;                     // old p01
+//	hkf->p01  *= (1 - K_w);
+//	hkf->p11  *= (1 - K_w);
+
 
 	hkf->last_innovation = innovation;
+//	if(theta_meas == hkf->second_last_theta_meas){
+//
+//		if(hkf->ticks_since_edge++ >= 100 ){
+//			hkf->omega = 0.0f;
+//		}
+//	}
+//	hkf->second_last_theta_meas = hkf->last_theta_meas;
+//	hkf->last_theta_meas = theta_meas;
+
 
 }
 
+// Prediction step for CVKF: 3-state constant-acceleration model
+//   x = [theta, omega, d_omega],  A = [[1,Ts,0],[0,1,Ts],[0,0,1]]
+//   theta advances at omega, omega advances at d_omega (=acceleration).
 void CVKF_Predict(CurrVectorKF_data *cvkf, float omega_hkf, float dt) {
-  // ------ predict for magnetic field Kalman -----------
+	(void)omega_hkf;   // not used in the constant-acceleration model
 	cvkf->ts = dt;
-	// x^- = A * x
-	cvkf->theta = wrap_0_2pi(cvkf->theta + cvkf->ts * cvkf->omega);
-	cvkf->omega = omega_hkf + cvkf->d_omega;
+	float Ts = dt;
 
-	// P^- update in scalar form (A = [[1 Ts],[0 1]]) P^- = A*P*A^T + Q
-	float p00 = cvkf->p00;
-	float p01 = cvkf->p01;
-	float p02 = cvkf->p02;
-	float p11 = cvkf->p11;
-	float p12 = cvkf->p12;
-	float p22 = cvkf->p22;
+	// x^- = A x
+	cvkf->theta = wrap_0_2pi(cvkf->theta + Ts * cvkf->omega);
+	cvkf->omega = cvkf->omega + Ts * cvkf->d_omega;
+	// d_omega (acceleration) unchanged (random walk via Q)
 
-	// theta
-	cvkf->p00 = p00 + 2.0f*cvkf->ts*p01 + (cvkf->ts*cvkf->ts)*p11 + cvkf->q_theta;
-	cvkf->p01 = p02 + cvkf->ts*p12;
-	cvkf->p02 = p02 + cvkf->ts*p12;
+	// P^- = A P A^T + Q  (3x3, derived element-by-element; snapshot old values)
+	float p00 = cvkf->p00, p01 = cvkf->p01, p02 = cvkf->p02;
+	float                  p11 = cvkf->p11, p12 = cvkf->p12;
+	float                                   p22 = cvkf->p22;
 
-	// omega
-	cvkf->p11 = p22 + cvkf->q_omega;
-	cvkf->p12 = p22;
-
-	// d_omega
+	cvkf->p00 = p00 + 2.0f*Ts*p01 + Ts*Ts*p11 + cvkf->q_theta;
+	cvkf->p01 = p01 + Ts*(p11 + p02) + Ts*Ts*p12;
+	cvkf->p02 = p02 + Ts*p12;
+	cvkf->p11 = p11 + 2.0f*Ts*p12 + Ts*Ts*p22 + cvkf->q_omega;
+	cvkf->p12 = p12 + Ts*p22;
 	cvkf->p22 = p22 + cvkf->q_d_omega;
+}
 
-  }
 
+// Update from atan2 angle measurement.  z = theta,  H = [1 0 0]
+void CVKF_Update(CurrVectorKF_data *cvkf, float theta_atan2) {
+	float y = wrap_pm_pi(theta_atan2 - cvkf->theta);
+	cvkf->last_innovation = y;
 
-void CVKF_Update(CurrVectorKF_data *cvkf, float theta_meas) {
-	// update Kalman gain K = (P*H^T)  / (H * P * H^T + R)
-	float S_inv = 1.0f / (cvkf->p00 + cvkf->r_theta);
+	// Wrap-ambiguity guard: ONLY within ~0.25 rad of +-pi is the wrapped sign
+	// unreliable (a full lap +eps reads as -pi+eps). There we re-seat instead of
+	// correcting the wrong way. Below CVKF_INNOV_MAX the direction is valid, so we
+	// let the filter use it to catch up during hard acceleration (do NOT reject).
+	if (fabsf(y) > CVKF_INNOV_MAX) {
+		cvkf->theta = theta_atan2;   // snap angle; keep omega/d_omega this cycle
+		return;
+	}
 
-	cvkf->K_theta  = cvkf->p00 * S_inv;
-	cvkf->K_omega  = cvkf->p01 * S_inv;
-	cvkf->K_d_omega = cvkf->p02 * S_inv;
+	// snapshot pre-update P (needed so the covariance update is consistent)
+	float p00 = cvkf->p00, p01 = cvkf->p01, p02 = cvkf->p02;
+	float                  p11 = cvkf->p11, p12 = cvkf->p12;
+	float                                   p22 = cvkf->p22;
 
-	// Inovacija s wrappingom
-	float innovation = wrap_pm_pi(theta_meas - cvkf->theta);
+	float S = p00 + cvkf->r_atan2;
+	cvkf->K_theta   = p00 / S;
+	cvkf->K_omega   = p01 / S;
+	cvkf->K_d_omega = p02 / S;
 
-	// Update stanja x = x + K * innovation
-	cvkf->theta += cvkf->K_theta   * innovation;
-	cvkf->omega += cvkf->K_omega  * innovation;
-	cvkf->d_omega += cvkf->K_d_omega * innovation;
+	cvkf->theta   = wrap_0_2pi(cvkf->theta + cvkf->K_theta * y);
+	cvkf->omega   += cvkf->K_omega   * y;
+	cvkf->d_omega += cvkf->K_d_omega * y;
 
-	cvkf->theta = wrap_0_2pi(cvkf->theta);
+	// P = (I - K H) P,  H picks row/col 0  ->  p_ij -= K_i * p_0j  (use snapshots)
+	cvkf->p00 = p00 - cvkf->K_theta   * p00;
+	cvkf->p01 = p01 - cvkf->K_theta   * p01;
+	cvkf->p02 = p02 - cvkf->K_theta   * p02;
+	cvkf->p11 = p11 - cvkf->K_omega   * p01;
+	cvkf->p12 = p12 - cvkf->K_omega   * p02;
+	cvkf->p22 = p22 - cvkf->K_d_omega * p02;
+}
 
-	// Update P matrix — (I - K*H) * P
-	cvkf->p00 = (1.0f - cvkf->K_theta)  * cvkf->p00;
-	cvkf->p01 = (1.0f - cvkf->K_theta)  * cvkf->p01;
-	cvkf->p02 = (1.0f - cvkf->K_theta)  * cvkf->p02;
-
-	cvkf->p11 = cvkf->p11 - cvkf->K_omega  * cvkf->p01;
-	cvkf->p12 = cvkf->p12 - cvkf->K_omega  * cvkf->p02;
-
-	cvkf->p22 = cvkf->p22 - cvkf->K_d_omega * cvkf->p02;
+// Idle hold: call every cycle while the CV measurement is gated off (low speed).
+// Predict-only running inflates P unbounded (p22 climbs at q_d_omega*25kHz); on
+// re-engagement that gives gains >> 1 that slam the states and collapse the filter.
+// Re-seating states + P to init each idle cycle keeps re-engagement smooth. theta is
+// seeded to the live measurement so the first active innovation is ~0.
+void CVKF_Idle(CurrVectorKF_data *cvkf, float theta_seed, float omega_seed) {
+	cvkf->theta   = theta_seed;
+	cvkf->omega   = omega_seed;
+	cvkf->d_omega = 0.0f;
+	cvkf->p00 = 0.1f;  cvkf->p01 = 0.0f;  cvkf->p02 = 0.0f;
+	                   cvkf->p11 = 10.0f; cvkf->p12 = 0.0f;
+	                                      cvkf->p22 = 10.0f;
+	cvkf->last_innovation = 0.0f;
 }
 
 

@@ -71,21 +71,21 @@ void Error_Handler(void);
 #define I1_GPIO_Port GPIOA
 #define Output_Enable_Pin GPIO_PIN_6
 #define Output_Enable_GPIO_Port GPIOA
-#define HALL_A_Pin GPIO_PIN_4
-#define HALL_A_GPIO_Port GPIOC
-#define HALL_A_EXTI_IRQn EXTI4_IRQn
-#define HALL_B_Pin GPIO_PIN_5
-#define HALL_B_GPIO_Port GPIOC
-#define HALL_B_EXTI_IRQn EXTI9_5_IRQn
 #define L3_Pin GPIO_PIN_1
 #define L3_GPIO_Port GPIOB
 #define HALL_C_Pin GPIO_PIN_2
 #define HALL_C_GPIO_Port GPIOB
 #define HALL_C_EXTI_IRQn EXTI2_IRQn
+#define HALL_B_Pin GPIO_PIN_11
+#define HALL_B_GPIO_Port GPIOB
+#define HALL_B_EXTI_IRQn EXTI15_10_IRQn
 #define L1_Pin GPIO_PIN_13
 #define L1_GPIO_Port GPIOB
 #define TEMP_Pin GPIO_PIN_14
 #define TEMP_GPIO_Port GPIOB
+#define HALL_A_Pin GPIO_PIN_15
+#define HALL_A_GPIO_Port GPIOB
+#define HALL_A_EXTI_IRQn EXTI15_10_IRQn
 #define Test_pin_Pin GPIO_PIN_8
 #define Test_pin_GPIO_Port GPIOC
 #define Test_pin2_Pin GPIO_PIN_9
@@ -110,6 +110,17 @@ void Error_Handler(void);
 #define M_PI 3.14159265358979323846f
 #endif
 
+#ifndef M_PI_3
+#define M_PI_3 1.04719755119659774615f
+#endif
+
+#ifndef M_PI_6
+#define M_PI_6 0.52359877559829887308f
+#endif
+
+#ifndef TWO_PI
+#define TWO_PI (2.0f * (float)M_PI)
+#endif
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

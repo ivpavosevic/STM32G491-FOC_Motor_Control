@@ -52,6 +52,9 @@ default.size.stdout \
 OBJDUMP_LIST += \
 PWM_output.list \
 
+OBJCOPY_BIN += \
+PWM_output.bin \
+
 
 # All Target
 all: main-build
@@ -61,7 +64,7 @@ main-build: PWM_output.elf secondary-outputs
 
 # Tool invocations
 PWM_output.elf PWM_output.map: $(OBJS) $(USER_OBJS) C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\STM32G491RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "PWM_output.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\STM32G491RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="PWM_output.map" -Wl,--gc-sections -static -L"C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\Libraries" -u _printf_float --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+	arm-none-eabi-gcc -o "PWM_output.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\STM32G491RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="PWM_output.map" -Wl,--gc-sections -static -L"C:\STM32_projekti\STM32G491-FOC_Motor_Control\STM32G491-FOC_Motor_Control\PWM_output\Libraries" -u _printf_float --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -75,12 +78,17 @@ PWM_output.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	@echo 'Finished building: $@'
 	@echo ' '
 
+PWM_output.bin: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-objcopy  -O binary $(EXECUTABLES) "PWM_output.bin"
+	@echo 'Finished building: $@'
+	@echo ' '
+
 # Other Targets
 clean:
-	-$(RM) PWM_output.elf PWM_output.list PWM_output.map default.size.stdout
+	-$(RM) PWM_output.bin PWM_output.elf PWM_output.list PWM_output.map default.size.stdout
 	-@echo ' '
 
-secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST)
+secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST) $(OBJCOPY_BIN)
 
 fail-specified-linker-script-missing:
 	@echo 'Error: Cannot find the specified linker script. Check the linker settings in the build configuration.'
